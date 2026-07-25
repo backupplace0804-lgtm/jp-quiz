@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>日語刷題 App</title>
 
+    <!-- 資安防護： Content Security Policy (CSP) -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        connect-src 'self' https://docs.google.com https://cdn.jsdelivr.net;
+        img-src 'self' https://cdn-icons-png.flaticon.com data:;
+        font-src 'self' data:;
+    ">
+
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -139,11 +149,21 @@
             color: #333;
         }
 
+        #stroke-demo-box {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            display: flex; justify-content: center; align-items: center;
+        }
+
         canvas {
             position: absolute;
             top: 0; left: 0;
             touch-action: none;
             cursor: crosshair;
+            z-index: 10;
         }
 
         .btn-action {
@@ -184,8 +204,8 @@
         <!-- 50音與手寫畫板 -->
         <div id="kana" class="tab-content">
             <div class="card" style="text-align:center;">
-                <h3>✍️ 假名發音與筆順練習</h3>
-                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，點擊「筆順示範」看筆劃動畫：</p>
+                <h3>✍️ 假名發音與標準筆順</h3>
+                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，點擊「筆順示範」看標準動畫：</p>
                 <div class="kana-grid">
                     <button class="kana-btn" data-char="あ" data-romaji="a">あ</button>
                     <button class="kana-btn" data-char="い" data-romaji="i">い</button>
@@ -196,12 +216,13 @@
                     <button class="kana-btn" data-char="き" data-romaji="ki">き</button>
                     <button class="kana-btn" data-char="く" data-romaji="ku">く</button>
                     <button class="kana-btn" data-char="け" data-romaji="ke">け</button>
-                    <button class="kana-btn" data-char="こ" data-romaji="ko">ko</button>
+                    <button class="kana-btn" data-char="こ" data-romaji="ko">こ</button>
                 </div>
                 <h2 id="current-kana" style="margin: 5px 0; color:var(--primary);">あ (a)</h2>
                 
                 <div class="canvas-container">
                     <div id="stroke-bg" class="stroke-guide-bg">あ</div>
+                    <div id="stroke-demo-box"></div>
                     <canvas id="writeCanvas" width="260" height="260"></canvas>
                 </div>
 
@@ -229,33 +250,8 @@
         let totalAnswered = 0;
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
-        let isAnimating = false;
 
-        const kanaPaths = {
-            'あ': [
-                [{x: 60, y: 100}, {x: 200, y: 100}],
-                [{x: 130, y: 50}, {x: 130, y: 200}],
-                [{x: 170, y: 120}, {x: 100, y: 180}, {x: 70, y: 130}, {x: 150, y: 140}, {x: 180, y: 180}]
-            ],
-            'い': [
-                [{x: 90, y: 70}, {x: 80, y: 180}, {x: 100, y: 170}],
-                [{x: 170, y: 80}, {x: 160, y: 150}]
-            ],
-            'う': [
-                [{x: 120, y: 60}, {x: 150, y: 70}],
-                [{x: 80, y: 110}, {x: 180, y: 110}, {x: 100, y: 200}]
-            ],
-            'え': [
-                [{x: 120, y: 55}, {x: 145, y: 65}],
-                [{x: 70, y: 110}, {x: 190, y: 110}, {x: 90, y: 190}, {x: 180, y: 190}]
-            ],
-            'お': [
-                [{x: 60, y: 100}, {x: 180, y: 100}],
-                [{x: 120, y: 60}, {x: 120, y: 170}, {x: 80, y: 150}, {x: 150, y: 190}],
-                [{x: 180, y: 80}, {x: 195, y: 95}]
-            ]
-        };
-
+        // 防禦：HTML 特殊字元轉義
         function escapeHTML(str) {
             if (!str) return '';
             return String(str).replace(/[&<>"']/g, m => ({
@@ -293,50 +289,61 @@
             currentKanaChar = char;
             document.getElementById('current-kana').innerText = `${char} (${romaji})`;
             document.getElementById('stroke-bg').innerText = char;
+            document.getElementById('stroke-demo-box').textContent = '';
             speakText(char);
             clearCanvas();
         }
 
+        // 資安升級：使用 DOMParser 與消毒清理載入外部 SVG 動畫
         async function playStrokeAnimation() {
-            if (isAnimating) return;
-            isAnimating = true;
             clearCanvas();
+            const box = document.getElementById('stroke-demo-box');
+            box.textContent = '';
+            
+            const loadingText = document.createElement('span');
+            loadingText.style.cssText = 'font-size:0.8rem; color:#888;';
+            loadingText.textContent = '載入筆順中...';
+            box.appendChild(loadingText);
 
-            const strokes = kanaPaths[currentKanaChar];
-            if (!strokes) {
-                speakText(currentKanaChar);
-                isAnimating = false;
-                return;
-            }
+            const hexCode = currentKanaChar.charCodeAt(0).toString(16).padStart(5, '0');
+            const svgUrl = `https://cdn.jsdelivr.net/gh/animcjk/animcjk@master/svgsKana/${hexCode}.svg`;
 
-            ctx.lineWidth = 7;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+            try {
+                const res = await fetch(svgUrl);
+                if (!res.ok) throw new Error("無 SVG 資料");
+                const svgText = await res.text();
 
-            for (let stroke of strokes) {
-                ctx.strokeStyle = '#e74c3c';
-                ctx.beginPath();
-                ctx.moveTo(stroke[0].x, stroke[0].y);
+                // 資安防護：使用 DOMParser 避免直接 InnerHTML 注入，並移除腳本標籤
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(svgText, "image/svg+xml");
+                
+                // 移除任何潛在的可執行腳本標籤
+                const scripts = doc.querySelectorAll('script');
+                scripts.forEach(s => s.remove());
 
-                for (let i = 1; i < stroke.length; i++) {
-                    const start = stroke[i - 1];
-                    const end = stroke[i];
-                    const steps = 18;
+                const svgEl = doc.querySelector('svg');
+                if (svgEl) {
+                    svgEl.setAttribute('width', '240');
+                    svgEl.setAttribute('height', '240');
+                    
+                    const style = doc.createElementNS("http://www.w3.org/2000/svg", "style");
+                    style.textContent = `
+                        path {
+                            stroke: #e74c3c !important;
+                            stroke-width: 6px !important;
+                        }
+                    `;
+                    svgEl.appendChild(style);
 
-                    for (let s = 1; s <= steps; s++) {
-                        const curX = start.x + (end.x - start.x) * (s / steps);
-                        const curY = start.y + (end.y - start.y) * (s / steps);
-                        ctx.lineTo(curX, curY);
-                        ctx.stroke();
-                        await new Promise(r => setTimeout(r, 16));
-                    }
+                    box.textContent = ''; // 清除載入文字
+                    box.appendChild(document.importNode(svgEl, true));
+                } else {
+                    throw new Error("SVG 格式解析失敗");
                 }
-                await new Promise(r => setTimeout(r, 180));
+            } catch (err) {
+                box.textContent = '';
+                speakText(currentKanaChar);
             }
-
-            ctx.strokeStyle = '#4a90e2';
-            ctx.lineWidth = 8;
-            isAnimating = false;
         }
 
         function saveConfig() {
@@ -374,7 +381,7 @@
             return arr;
         }
 
-        // 強力轉譯答案函數（相容 1~4, A~D, a~d）
+        // 輸入清理：驗證答案範圍
         function normalizeAnswer(val) {
             if (!val) return 1;
             const str = String(val).trim().toUpperCase();
@@ -396,20 +403,20 @@
 
                 const clean = col => col ? col.trim() : '';
 
-                let id = clean(cols[0]);          // A欄: ID
-                let date = clean(cols[1]);        // B欄: 日期
-                let category = clean(cols[2]);    // C欄: 種類
-                let level = clean(cols[3]);       // D欄: 難易度
-                let question = clean(cols[4]);    // E欄: 題目
+                let id = clean(cols[0]);
+                let date = clean(cols[1]);
+                let category = clean(cols[2]);
+                let level = clean(cols[3]);
+                let question = clean(cols[4]);
 
-                let opt1 = clean(cols[5]);        // F欄: 選項A
-                let opt2 = clean(cols[6]);        // G欄: 選項B
-                let opt3 = clean(cols[7]);        // H欄: 選項C
-                let opt4 = clean(cols[8]);        // I欄: 選項D
+                let opt1 = clean(cols[5]);
+                let opt2 = clean(cols[6]);
+                let opt3 = clean(cols[7]);
+                let opt4 = clean(cols[8]);
 
-                let ansVal = clean(cols[9]);      // J欄: 答案
-                let explanation = clean(cols[10]);// K欄: 文法解析
-                let keyword = clean(cols[11]);    // L欄: 關鍵單字
+                let ansVal = clean(cols[9]);
+                let explanation = clean(cols[10]);
+                let keyword = clean(cols[11]);
 
                 const options = [opt1, opt2, opt3, opt4].filter(o => o !== '');
                 const correctAnswer = normalizeAnswer(ansVal);
@@ -553,18 +560,17 @@
             ctx.lineJoin = 'round';
             ctx.strokeStyle = '#4a90e2';
 
-            canvas.onmousedown = (e) => { if(isAnimating) return; isDrawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
-            canvas.onmousemove = (e) => { if(isDrawing && !isAnimating) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
+            canvas.onmousedown = (e) => { isDrawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
+            canvas.onmousemove = (e) => { if(isDrawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
             canvas.onmouseup = () => isDrawing = false;
 
             canvas.ontouchstart = (e) => {
-                if(isAnimating) return;
                 e.preventDefault(); const rect = canvas.getBoundingClientRect(); const touch = e.touches[0];
                 isDrawing = true; ctx.beginPath(); ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
             };
             canvas.ontouchmove = (e) => {
                 e.preventDefault();
-                if(isDrawing && !isAnimating) {
+                if(isDrawing) {
                     const rect = canvas.getBoundingClientRect(); const touch = e.touches[0];
                     ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top); ctx.stroke();
                 }
@@ -574,6 +580,7 @@
 
         function clearCanvas() {
             if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('stroke-demo-box').textContent = '';
         }
 
         document.addEventListener('click', (e) => {
