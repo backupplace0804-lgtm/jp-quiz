@@ -5,12 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>日語刷題 App</title>
 
-    <!-- CSP：允許載入 jsDelivr 的 SVG 動畫圖片 -->
+    <!-- 終極嚴格版 CSP：明確指定白名單，徹底封鎖非授權來源 -->
     <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;
-        connect-src 'self' https://docs.google.com https://*.google.com https://*.googleusercontent.com https://cdn.jsdelivr.net;
-        img-src 'self' https: data: blob:;
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        connect-src 'self' https://docs.google.com https://*.googleusercontent.com;
+        img-src 'self' https://cdn.jsdelivr.net https://cdn-icons-png.flaticon.com data:;
         font-src 'self' data:;
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
     ">
 
     <meta name="mobile-web-app-capable" content="yes">
@@ -113,7 +118,6 @@
             color: #2e7d32; font-weight: bold; font-size: 0.85rem;
         }
 
-        /* 50音網格樣式：捲軸與極簡排列 */
         .kana-grid {
             display: grid; 
             grid-template-columns: repeat(5, 1fr); 
@@ -133,17 +137,12 @@
             font-size: 0.95rem;
         }
 
-        .kana-btn.empty {
-            visibility: hidden;
-            pointer-events: none;
-        }
-
+        .kana-btn.empty { visibility: hidden; pointer-events: none; }
         .kana-btn:active { background: var(--primary); color: white; }
 
         .canvas-container {
             position: relative;
-            width: 260px;
-            height: 260px;
+            width: 260px; height: 260px;
             margin: 0 auto;
             border: 2px dashed #cbd5e1;
             border-radius: 12px;
@@ -152,37 +151,27 @@
         }
 
         .stroke-guide-bg {
-            position: absolute;
-            top: 0; left: 0;
+            position: absolute; top: 0; left: 0;
             width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            opacity: 0.18;
-            pointer-events: none;
+            opacity: 0.18; pointer-events: none;
             font-size: 150px;
             font-family: "Hiragino Sans", "Kaku Gothic Pro", "Yu Gothic", sans-serif;
             color: #333;
         }
 
         #stroke-demo-box {
-            position: absolute;
-            top: 0; left: 0;
+            position: absolute; top: 0; left: 0;
             width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 5;
+            pointer-events: none; z-index: 5;
             display: flex; justify-content: center; align-items: center;
         }
 
-        #stroke-demo-box img {
-            width: 240px;
-            height: 240px;
-        }
+        #stroke-demo-box img { width: 240px; height: 240px; }
 
         canvas {
-            position: absolute;
-            top: 0; left: 0;
-            touch-action: none;
-            cursor: crosshair;
-            z-index: 10;
+            position: absolute; top: 0; left: 0;
+            touch-action: none; cursor: crosshair; z-index: 10;
         }
 
         .btn-action {
@@ -226,7 +215,6 @@
                 <h3>✍️ 假名發音與標準筆順</h3>
                 <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，點擊「筆順示範」看標準動畫：</p>
                 
-                <!-- 完整五十音表區塊 -->
                 <div class="kana-grid" id="kana-grid-box"></div>
 
                 <h2 id="current-kana" style="margin: 5px 0; color:var(--primary);">あ (a)</h2>
@@ -262,7 +250,6 @@
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
 
-        // 完整清音五十音資料庫 (包含對應空格)
         const kanaList = [
             { c: 'あ', r: 'a' },  { c: 'い', r: 'i' },  { c: 'う', r: 'u' },  { c: 'え', r: 'e' },  { c: 'お', r: 'o' },
             { c: 'か', r: 'ka' }, { c: 'き', r: 'ki' }, { c: 'く', r: 'ku' }, { c: 'け', r: 'ke' }, { c: 'こ', r: 'ko' },
@@ -289,11 +276,7 @@
         function escapeHTML(str) {
             if (!str) return '';
             return String(str).replace(/[&<>"']/g, m => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#39;'
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[m]));
         }
 
@@ -333,25 +316,14 @@
             const box = document.getElementById('stroke-demo-box');
             box.innerHTML = '<span style="font-size:0.8rem; color:#888;">載入筆順中...</span>';
 
-            // 將字元轉為 Unicode 十六進位，補滿 5 位數 (例如 'あ' -> '03042')
             const hexCode = currentKanaChar.charCodeAt(0).toString(16).padStart(5, '0');
-            
-            // AnimCJK 官方 CDN SVG 動畫圖檔路徑
             const svgUrl = `https://cdn.jsdelivr.net/gh/animcjk/animcjk@2021.12.28/svgsKana/${hexCode}.svg`;
 
-            // 利用 <img> 標籤原生呈現 SVG 筆順動畫，防止 fetch 跨域及解析問題
             const img = new Image();
             img.src = svgUrl;
             img.alt = currentKanaChar;
-
-            img.onload = () => {
-                box.innerHTML = '';
-                box.appendChild(img);
-            };
-
-            img.onerror = () => {
-                box.innerHTML = '<span style="font-size:0.8rem; color:#e74c3c;">無法載入動畫</span>';
-            };
+            img.onload = () => { box.innerHTML = ''; box.appendChild(img); };
+            img.onerror = () => { box.innerHTML = '<span style="font-size:0.8rem; color:#e74c3c;">無法載入動畫</span>'; };
         }
 
         function saveConfig() {
@@ -409,36 +381,19 @@
                 if(!cols || cols.length < 10) continue;
 
                 const clean = col => col ? col.trim() : '';
-
-                let id = clean(cols[0]);
-                let date = clean(cols[1]);
-                let category = clean(cols[2]);
-                let level = clean(cols[3]);
-                let question = clean(cols[4]);
-
-                let opt1 = clean(cols[5]);
-                let opt2 = clean(cols[6]);
-                let opt3 = clean(cols[7]);
-                let opt4 = clean(cols[8]);
-
-                let ansVal = clean(cols[9]);
-                let explanation = clean(cols[10]);
-                let keyword = clean(cols[11]);
+                let id = clean(cols[0]), date = clean(cols[1]), category = clean(cols[2]);
+                let level = clean(cols[3]), question = clean(cols[4]);
+                let opt1 = clean(cols[5]), opt2 = clean(cols[6]), opt3 = clean(cols[7]), opt4 = clean(cols[8]);
+                let ansVal = clean(cols[9]), explanation = clean(cols[10]), keyword = clean(cols[11]);
 
                 const options = [opt1, opt2, opt3, opt4].filter(o => o !== '');
                 const correctAnswer = normalizeAnswer(ansVal);
 
                 if(question) {
                     result.push({
-                        id: id || String(i),
-                        date: date,
-                        category: category,
-                        level: level,
-                        question: question,
-                        options: options,
-                        answer: correctAnswer,
-                        explanation: explanation || '無解析',
-                        keyword: keyword
+                        id: id || String(i), date: date, category: category, level: level,
+                        question: question, options: options, answer: correctAnswer,
+                        explanation: explanation || '無解析', keyword: keyword
                     });
                 }
             }
