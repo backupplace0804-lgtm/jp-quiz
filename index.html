@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>日語刷題 App</title>
 
-    <!-- CSP 修正版：放寬 connect-src 與 img-src 允許 jsDelivr 圖片與 SVG 載入 -->
+    <!-- CSP：允許載入 jsDelivr 的 SVG 動畫圖片 -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;
         connect-src 'self' https://docs.google.com https://*.google.com https://*.googleusercontent.com https://cdn.jsdelivr.net;
@@ -113,13 +113,29 @@
             color: #2e7d32; font-weight: bold; font-size: 0.85rem;
         }
 
+        /* 50音網格樣式：捲軸與極簡排列 */
         .kana-grid {
-            display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 15px;
+            display: grid; 
+            grid-template-columns: repeat(5, 1fr); 
+            gap: 6px; 
+            margin-bottom: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 4px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #fafafa;
         }
 
         .kana-btn {
-            padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;
+            padding: 8px 0; border: 1px solid #cbd5e1; border-radius: 6px;
             background: #fff; text-align: center; font-weight: bold; cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .kana-btn.empty {
+            visibility: hidden;
+            pointer-events: none;
         }
 
         .kana-btn:active { background: var(--primary); color: white; }
@@ -154,6 +170,11 @@
             pointer-events: none;
             z-index: 5;
             display: flex; justify-content: center; align-items: center;
+        }
+
+        #stroke-demo-box img {
+            width: 240px;
+            height: 240px;
         }
 
         canvas {
@@ -204,18 +225,10 @@
             <div class="card" style="text-align:center;">
                 <h3>✍️ 假名發音與標準筆順</h3>
                 <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，點擊「筆順示範」看標準動畫：</p>
-                <div class="kana-grid">
-                    <button class="kana-btn" data-char="あ" data-romaji="a">あ</button>
-                    <button class="kana-btn" data-char="い" data-romaji="i">い</button>
-                    <button class="kana-btn" data-char="う" data-romaji="u">う</button>
-                    <button class="kana-btn" data-char="え" data-romaji="e">え</button>
-                    <button class="kana-btn" data-char="お" data-romaji="o">お</button>
-                    <button class="kana-btn" data-char="か" data-romaji="ka">か</button>
-                    <button class="kana-btn" data-char="き" data-romaji="ki">き</button>
-                    <button class="kana-btn" data-char="く" data-romaji="ku">く</button>
-                    <button class="kana-btn" data-char="け" data-romaji="ke">け</button>
-                    <button class="kana-btn" data-char="こ" data-romaji="ko">こ</button>
-                </div>
+                
+                <!-- 完整五十音表區塊 -->
+                <div class="kana-grid" id="kana-grid-box"></div>
+
                 <h2 id="current-kana" style="margin: 5px 0; color:var(--primary);">あ (a)</h2>
                 
                 <div class="canvas-container">
@@ -248,6 +261,30 @@
         let totalAnswered = 0;
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
+
+        // 完整清音五十音資料庫 (包含對應空格)
+        const kanaList = [
+            { c: 'あ', r: 'a' },  { c: 'い', r: 'i' },  { c: 'う', r: 'u' },  { c: 'え', r: 'e' },  { c: 'お', r: 'o' },
+            { c: 'か', r: 'ka' }, { c: 'き', r: 'ki' }, { c: 'く', r: 'ku' }, { c: 'け', r: 'ke' }, { c: 'こ', r: 'ko' },
+            { c: 'さ', r: 'sa' }, { c: 'し', r: 'shi' },{ c: 'す', r: 'su' }, { c: 'せ', r: 'se' }, { c: 'そ', r: 'so' },
+            { c: 'た', r: 'ta' }, { c: 'ち', r: 'chi' },{ c: 'つ', r: 'tsu' },{ c: 'て', r: 'te' }, { c: 'と', r: 'to' },
+            { c: 'な', r: 'na' }, { c: 'に', r: 'ni' }, { c: 'ぬ', r: 'nu' }, { c: 'ね', r: 'ne' }, { c: 'の', r: 'no' },
+            { c: 'は', r: 'ha' }, { c: 'ひ', r: 'hi' }, { c: 'ふ', r: 'fu' }, { c: 'へ', r: 'he' }, { c: 'ほ', r: 'ho' },
+            { c: 'ま', r: 'ma' }, { c: 'み', r: 'mi' }, { c: 'む', r: 'mu' }, { c: 'め', r: 'me' }, { c: 'も', r: 'mo' },
+            { c: 'や', r: 'ya' }, { c: '', r: '' },     { c: 'ゆ', r: 'yu' }, { c: '', r: '' },     { c: 'よ', r: 'yo' },
+            { c: 'ら', r: 'ra' }, { c: 'り', r: 'ri' }, { c: 'る', r: 'ru' }, { c: 'れ', r: 're' }, { c: 'ろ', r: 'ro' },
+            { c: 'わ', r: 'wa' }, { c: '', r: '' },     { c: '', r: '' },     { c: '', r: '' },     { c: 'を', r: 'wo' },
+            { c: 'ん', r: 'n' }
+        ];
+
+        function renderKanaGrid() {
+            const grid = document.getElementById('kana-grid-box');
+            if (!grid) return;
+            grid.innerHTML = kanaList.map(k => {
+                if (!k.c) return '<div class="kana-btn empty"></div>';
+                return `<button class="kana-btn" data-char="${k.c}" data-romaji="${k.r}">${k.c}</button>`;
+            }).join('');
+        }
 
         function escapeHTML(str) {
             if (!str) return '';
@@ -291,38 +328,30 @@
             clearCanvas();
         }
 
-        async function playStrokeAnimation() {
+        function playStrokeAnimation() {
             clearCanvas();
             const box = document.getElementById('stroke-demo-box');
             box.innerHTML = '<span style="font-size:0.8rem; color:#888;">載入筆順中...</span>';
 
+            // 將字元轉為 Unicode 十六進位，補滿 5 位數 (例如 'あ' -> '03042')
             const hexCode = currentKanaChar.charCodeAt(0).toString(16).padStart(5, '0');
-            const svgUrl = `https://cdn.jsdelivr.net/gh/animcjk/animcjk@master/svgsKana/${hexCode}.svg`;
+            
+            // AnimCJK 官方 CDN SVG 動畫圖檔路徑
+            const svgUrl = `https://cdn.jsdelivr.net/gh/animcjk/animcjk@2021.12.28/svgsKana/${hexCode}.svg`;
 
-            try {
-                const res = await fetch(svgUrl);
-                if (!res.ok) throw new Error("無 SVG 資料");
-                let svgText = await res.text();
+            // 利用 <img> 標籤原生呈現 SVG 筆順動畫，防止 fetch 跨域及解析問題
+            const img = new Image();
+            img.src = svgUrl;
+            img.alt = currentKanaChar;
 
-                box.innerHTML = svgText;
-                const svgEl = box.querySelector('svg');
-                if (svgEl) {
-                    svgEl.setAttribute('width', '240');
-                    svgEl.setAttribute('height', '240');
-                    
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        #stroke-demo-box path {
-                            stroke: #e74c3c !important;
-                            stroke-width: 6px !important;
-                        }
-                    `;
-                    svgEl.appendChild(style);
-                }
-            } catch (err) {
+            img.onload = () => {
+                box.innerHTML = '';
+                box.appendChild(img);
+            };
+
+            img.onerror = () => {
                 box.innerHTML = '<span style="font-size:0.8rem; color:#e74c3c;">無法載入動畫</span>';
-                speakText(currentKanaChar);
-            }
+            };
         }
 
         function saveConfig() {
@@ -582,7 +611,7 @@
                 return;
             }
 
-            if (e.target.classList.contains('kana-btn')) {
+            if (e.target.classList.contains('kana-btn') && !e.target.classList.contains('empty')) {
                 selectKana(e.target.dataset.char, e.target.dataset.romaji);
                 return;
             }
@@ -595,6 +624,7 @@
         document.getElementById('btn-clear-wrong')?.addEventListener('click', clearWrongList);
 
         window.onload = () => {
+            renderKanaGrid();
             const savedUrl = localStorage.getItem('jp_csv_url');
             if(savedUrl) {
                 document.getElementById('csvUrl').value = savedUrl;
