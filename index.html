@@ -196,7 +196,7 @@
                     <button class="kana-btn" data-char="き" data-romaji="ki">き</button>
                     <button class="kana-btn" data-char="く" data-romaji="ku">く</button>
                     <button class="kana-btn" data-char="け" data-romaji="ke">け</button>
-                    <button class="kana-btn" data-char="こ" data-romaji="ko">こ</button>
+                    <button class="kana-btn" data-char="こ" data-romaji="ko">ko</button>
                 </div>
                 <h2 id="current-kana" style="margin: 5px 0; color:var(--primary);">あ (a)</h2>
                 
@@ -256,7 +256,6 @@
             ]
         };
 
-        // 安全 HTML 轉義
         function escapeHTML(str) {
             if (!str) return '';
             return String(str).replace(/[&<>"']/g, m => ({
@@ -268,7 +267,6 @@
             }[m]));
         }
 
-        // 頁籤切換
         function switchTab(tabId, targetBtn) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
@@ -281,7 +279,6 @@
             if(tabId === 'kana') setTimeout(initCanvas, 100);
         }
 
-        // 安全發音功能
         function speakText(text, isSlow = false) {
             if ('speechSynthesis' in window && text) {
                 window.speechSynthesis.cancel();
@@ -377,6 +374,18 @@
             return arr;
         }
 
+        // 強力轉譯答案函數（相容 1~4, A~D, a~d）
+        function normalizeAnswer(val) {
+            if (!val) return 1;
+            const str = String(val).trim().toUpperCase();
+            if (str === '1' || str === 'A') return 1;
+            if (str === '2' || str === 'B') return 2;
+            if (str === '3' || str === 'C') return 3;
+            if (str === '4' || str === 'D') return 4;
+            const parsed = parseInt(str, 10);
+            return (isNaN(parsed) || parsed < 1 || parsed > 4) ? 1 : parsed;
+        }
+
         function parseCSV(text) {
             const rows = parseCSVText(text);
             const result = [];
@@ -398,12 +407,12 @@
                 let opt3 = clean(cols[7]);        // H欄: 選項C
                 let opt4 = clean(cols[8]);        // I欄: 選項D
 
-                let ansVal = clean(cols[9]);      // J欄: 答案 (1~4)
+                let ansVal = clean(cols[9]);      // J欄: 答案
                 let explanation = clean(cols[10]);// K欄: 文法解析
-                let keyword = clean(cols[11]);    // L欄: 關鍵單字 (Key Word)
+                let keyword = clean(cols[11]);    // L欄: 關鍵單字
 
                 const options = [opt1, opt2, opt3, opt4].filter(o => o !== '');
-                const parsedAns = parseInt(ansVal, 10);
+                const correctAnswer = normalizeAnswer(ansVal);
 
                 if(question) {
                     result.push({
@@ -413,7 +422,7 @@
                         level: level,
                         question: question,
                         options: options,
-                        answer: isNaN(parsedAns) ? 1 : parsedAns,
+                        answer: correctAnswer,
                         explanation: explanation || '無解析',
                         keyword: keyword
                     });
@@ -567,16 +576,13 @@
             if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
-        // 事件委派監聽 (全域安全處裡)
         document.addEventListener('click', (e) => {
-            // 導覽列點擊
             if (e.target.tagName === 'BUTTON' && e.target.parentElement.tagName === 'NAV') {
                 const tabId = e.target.dataset.tab;
                 if(tabId) switchTab(tabId, e.target);
                 return;
             }
 
-            // 朗讀按鈕
             if (e.target.classList.contains('btn-speak-normal')) {
                 speakText(e.target.dataset.speech, false);
                 return;
@@ -586,20 +592,17 @@
                 return;
             }
 
-            // 選項按鈕
             if (e.target.classList.contains('option-btn')) {
                 handleAnswer(e.target);
                 return;
             }
 
-            // 50音按鈕
             if (e.target.classList.contains('kana-btn')) {
                 selectKana(e.target.dataset.char, e.target.dataset.romaji);
                 return;
             }
         });
 
-        // 靜態按鈕監聽
         document.getElementById('btn-stroke-demo')?.addEventListener('click', playStrokeAnimation);
         document.getElementById('btn-clear-canvas')?.addEventListener('click', clearCanvas);
         document.getElementById('btn-kana-speak')?.addEventListener('click', () => speakText(currentKanaChar));
