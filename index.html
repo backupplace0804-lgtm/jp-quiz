@@ -125,20 +125,26 @@
         .kana-btn:active { background: var(--primary); color: white; }
 
         .canvas-container {
-            position: relative; width: 260px; height: 260px; margin: 0 auto;
+            position: relative; width: 240px; height: 240px; margin: 0 auto;
             border: 2px dashed #cbd5e1; border-radius: 12px; background-color: #fff; overflow: hidden;
         }
 
         .stroke-guide-bg {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            opacity: 0.12; pointer-events: none; font-size: 150px;
-            font-family: "Hiragino Sans", "Kaku Gothic Pro", "Yu Gothic", sans-serif; color: #333;
+            opacity: 0.12; pointer-events: none; font-size: 140px; color: #333;
         }
 
         #stroke-demo-box {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 5; display: flex; justify-content: center; align-items: center;
+        }
+
+        /* 確保 AnimCJK 內嵌的 SVG 動畫元素能正確撐開並顯示 */
+        #stroke-demo-box svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
         }
 
         canvas { position: absolute; top: 0; left: 0; touch-action: none; cursor: crosshair; z-index: 10; }
@@ -191,7 +197,7 @@
                 <div class="canvas-container">
                     <div id="stroke-bg" class="stroke-guide-bg">あ</div>
                     <div id="stroke-demo-box"></div>
-                    <canvas id="writeCanvas" width="260" height="260"></canvas>
+                    <canvas id="writeCanvas" width="240" height="240"></canvas>
                 </div>
 
                 <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px;">
@@ -311,13 +317,14 @@
             clearCanvas();
         }
 
+        // 筆順動畫：精確使用 AnimCJK 的 svgsJaKana 資料夾與十進位 Unicode 檔名
         function playStrokeAnimation() {
             clearCanvas();
             const box = document.getElementById('stroke-demo-box');
             box.innerHTML = '<span style="font-size:0.8rem; color:#888;">載入動畫中...</span>';
 
-            const hex = currentKanaChar.charCodeAt(0).toString(16).padStart(4, '0');
-            const svgUrl = `https://cdn.jsdelivr.net/gh/animcjk/animcjk@master/svgsKana/${hex}.svg`;
+            const decimalCode = currentKanaChar.charCodeAt(0);
+            const svgUrl = `https://cdn.jsdelivr.net/gh/parsimonhi/animCJK@master/svgsJaKana/${decimalCode}.svg`;
 
             fetch(svgUrl)
                 .then(res => {
@@ -326,12 +333,6 @@
                 })
                 .then(svgText => {
                     box.innerHTML = svgText;
-                    const svgEl = box.querySelector('svg');
-                    if (svgEl) {
-                        svgEl.setAttribute('width', '240');
-                        svgEl.setAttribute('height', '240');
-                        svgEl.style.overflow = 'visible';
-                    }
                 })
                 .catch(err => {
                     box.innerHTML = '<span style="font-size:0.8rem; color:#e74c3c;">無法載入筆順</span>';
