@@ -233,12 +233,10 @@
             { c: 'ん', r: 'n' }
         ];
 
-        // 取得 YYYY-MM-DD
         function getTodayStr() {
             return new Date().toISOString().split('T')[0];
         }
 
-        // 判斷是否為每 7 天的複習日
         function isWrongReviewDay() {
             const today = new Date();
             const startOfYear = new Date(today.getFullYear(), 0, 0);
@@ -248,7 +246,6 @@
             return (dayOfYear % 7 === 0);
         }
 
-        // 以日期字串當種子的洗牌演算法（每日題目固定）
         function seededShuffle(array, seedStr) {
             let seed = 0;
             for (let i = 0; i < seedStr.length; i++) {
@@ -333,6 +330,7 @@
                     if (svgEl) {
                         svgEl.setAttribute('width', '240');
                         svgEl.setAttribute('height', '240');
+                        svgEl.style.overflow = 'visible';
                     }
                 })
                 .catch(err => {
@@ -441,7 +439,6 @@
                 const isReviewDay = isWrongReviewDay();
                 let reviewCount = 0;
 
-                // 每 7 天從錯題本挑 1~2 題
                 if (isReviewDay && wrongIds.length > 0) {
                     const wrongQuestions = allQuestions.filter(q => wrongIds.includes(q.id));
                     if (wrongQuestions.length > 0) {
@@ -451,7 +448,6 @@
                     }
                 }
 
-                // 補足其餘一般題目至 20 題
                 const pickedIds = new Set(selectedQuestions.map(q => q.id));
                 const remainingPool = allQuestions.filter(q => !pickedIds.has(q.id));
                 
@@ -460,7 +456,6 @@
                 
                 selectedQuestions.push(...shuffledRemaining.slice(0, fillCount));
 
-                // 混合洗牌
                 const finalDailyQuestions = seededShuffle(selectedQuestions, todayStr + '_final');
 
                 renderQuestions(finalDailyQuestions, 'quiz-container');
