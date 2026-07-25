@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>日語刷題 App</title>
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="日語刷題">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3269/3269817.png">
+
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh; user-select: none;
+        }
+
+        header {
+            width: 100%; background-color: var(--primary); color: white;
+            text-align: center; padding: 1rem 0 0.6rem;
+            position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        header h1 { margin: 0; font-size: 1.2rem; }
+
+        .stats-bar {
+            font-size: 0.8rem; background: rgba(0,0,0,0.15);
+            padding: 4px 12px; border-radius: 10px; margin-top: 6px; display: inline-block;
+        }
+
+        nav {
+            display: flex; justify-content: center; gap: 6px;
+            margin: 12px 0; width: 92%; max-width: 600px;
+        }
+
+        nav button {
+            flex: 1; padding: 8px 0; border: none; border-radius: 16px;
+            background-color: #e0e0e0; color: var(--text);
+            font-weight: bold; font-size: 0.85rem; cursor: pointer;
+        }
+
+        nav button.active { background-color: var(--primary); color: white; }
+
+        .container { width: 92%; max-width: 600px; margin-bottom: 30px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card {
+            background-color: var(--card-bg); border-radius: 12px;
+            padding: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px;
+        }
+
+        .question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .tag { background-color: #eef2f7; color: var(--primary); padding: 3px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
+
+        .question-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 12px; line-height: 1.4; }
+
+        .btn-audio {
+            background: #f0f4f8; border: 1px solid var(--primary);
+            border-radius: 12px; padding: 3px 8px; cursor: pointer;
+            font-size: 0.8rem; color: var(--primary); font-weight: bold;
+        }
+
+        .options-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 12px; }
+
+        .option-btn {
+            padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;
+            background: white; text-align: left; font-size: 0.95rem; cursor: pointer;
+        }
+
+        .option-btn.correct { background-color: #d4edda; border-color: var(--success); color: #155724; font-weight: bold; }
+        .option-btn.wrong { background-color: #f8d7da; border-color: var(--danger); color: #721c24; }
+
+        .explanation {
+            display: none; margin-top: 12px; padding: 10px;
+            background-color: #f8f9fa; border-left: 4px solid var(--primary);
+            border-radius: 4px; font-size: 0.9rem; line-height: 1.4;
+        }
+
+        /* 50音選擇按鈕 */
+        .kana-grid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 15px;
+        }
+
+        .kana-btn {
+            padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;
+            background: #fff; text-align: center; font-weight: bold; cursor: pointer;
+        }
+
+        .kana-btn:active { background: var(--primary); color: white; }
+
+        canvas { border: 2px dashed #cbd5e1; border-radius: 12px; background: #fff; touch-action: none; }
+
+        .btn-action {
+            width: 100%; padding: 10px; border: none; border-radius: 8px;
+            background-color: var(--primary); color: white; font-weight: bold; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>日語刷題 App</h1>
+        <div class="stats-bar" id="stats">今日進度：0 題 | 正確率：0%</div>
+    </header>
+
+    <nav>
+        <button class="active" onclick="switchTab('quiz')">每日刷題</button>
+        <button onclick="switchTab('wrong')">錯題本</button>
+        <button onclick="switchTab('kana')">50音練習</button>
+        <button onclick="switchTab('settings')">設定</button>
+    </nav>
+
+    <div class="container">
+        <!-- 每日刷題 -->
+        <div id="quiz" class="tab-content active">
+            <div id="quiz-container">
+                <div class="card"><p>請先前往「設定」貼上 Google Sheet CSV 連結！</p></div>
+            </div>
+        </div>
+
+        <!-- 錯題本專區 -->
+        <div id="wrong" class="tab-content">
+            <div id="wrong-container">
+                <div class="card"><p>目前沒有錯題，繼續保持！👍</p></div>
+            </div>
+        </div>
+
+        <!-- 50音與手寫畫板 -->
+        <div id="kana" class="tab-content">
+            <div class="card" style="text-align:center;">
+                <h3>✍️ 假名發音與練習畫板</h3>
+                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，並在下方練習手寫：</p>
+                <div class="kana-grid">
+                    <button class="kana-btn" onclick="selectKana('あ')">あ</button>
+                    <button class="kana-btn" onclick="selectKana('い')">い</button>
+                    <button class="kana-btn" onclick="selectKana('う')">う</button>
+                    <button class="kana-btn" onclick="selectKana('え')">え</button>
+                    <button class="kana-btn" onclick="selectKana('お')">お</button>
+                    <button class="kana-btn" onclick="selectKana('か')">か</button>
+                    <button class="kana-btn" onclick="selectKana('き')">き</button>
+                    <button class="kana-btn" onclick="selectKana('く')">く</button>
+                    <button class="kana-btn" onclick="selectKana('け')">け</button>
+                    <button class="kana-btn" onclick="selectKana('こ')">こ</button>
+                </div>
+                <h2 id="current-kana" style="margin: 5px 0; color:var(--primary);">あ</h2>
+                <canvas id="writeCanvas" width="260" height="260"></canvas>
+                <div style="margin-top:10px;">
+                    <button class="btn-action" style="background:#e0e0e0; color:#333;" onclick="clearCanvas()">清空畫板</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 設定 -->
+        <div id="settings" class="tab-content">
+            <div class="card">
+                <h3>⚙️ 資料庫網址設定</h3>
+                <input type="text" id="csvUrl" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv" style="width:100%; padding:10px; margin-bottom:10px;">
+                <button class="btn-action" onclick="saveConfig()">儲存並更新題目</button>
+                <button class="btn-action" style="background:var(--danger); margin-top:10px;" onclick="clearWrongList()">清空錯題紀錄</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allQuestions = [];
+        let totalAnswered = 0;
+        let totalCorrect = 0;
+
+        function escapeHTML(str) {
+            return str ? str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])) : '';
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+
+            if(tabId === 'wrong') renderWrongQuestions();
+            if(tabId === 'kana') setTimeout(initCanvas, 100);
+        }
+
+        function speakText(text, isSlow = false) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.lang = 'ja-JP';
+                u.rate = isSlow ? 0.6 : 0.85;
+                window.speechSynthesis.speak(u);
+            }
+        }
+
+        function selectKana(char) {
+            document.getElementById('current-kana').innerText = char;
+            speakText(char);
+            clearCanvas();
+        }
+
+        function saveConfig() {
+            const url = document.getElementById('csvUrl').value.trim();
+            if(!url.startsWith('https://docs.google.com/')) return alert("請輸入正確的 CSV 連結！");
+            localStorage.setItem('jp_csv_url', url);
+            alert("設定完成！");
+            loadQuestions();
+            switchTab('quiz');
+        }
+
+        function parseCSV(text) {
+            const lines = text.split(/\r\n|\n/);
+            const result = [];
+            for(let i = 1; i < lines.length; i++) {
+                if(!lines[i].trim()) continue;
+                const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                if(cols.length >= 7) {
+                    result.push({
+                        id: cols[0]?.replace(/^"|"$/g, '').trim(),
+                        level: cols[1]?.replace(/^"|"$/g, '').trim(),
+                        question: cols[2]?.replace(/^"|"$/g, '').trim(),
+                        options: [
+                            cols[3]?.replace(/^"|"$/g, '').trim(),
+                            cols[4]?.replace(/^"|"$/g, '').trim(),
+                            cols[5]?.replace(/^"|"$/g, '').trim(),
+                            cols[6]?.replace(/^"|"$/g, '').trim()
+                        ],
+                        answer: parseInt(cols[7]?.replace(/^"|"$/g, '').trim()) || 1,
+                        explanation: cols[8]?.replace(/^"|"$/g, '').trim() || '無解析'
+                    });
+                }
+            }
+            return result;
+        }
+
+        async function loadQuestions() {
+            const url = localStorage.getItem('jp_csv_url');
+            if(!url) return;
+
+            try {
+                const res = await fetch(url + '&t=' + new Date().getTime());
+                const csvData = await res.text();
+                allQuestions = parseCSV(csvData);
+                renderQuestions(allQuestions, 'quiz-container');
+            } catch (err) {
+                document.getElementById('quiz-container').innerHTML = '<div class="card"><p style="color:var(--danger)">載入失敗，請檢查網址設定。</p></div>';
+            }
+        }
+
+        function renderQuestions(list, targetId) {
+            const container = document.getElementById(targetId);
+            if(list.length === 0) {
+                container.innerHTML = '<div class="card"><p>目前沒有題目。</p></div>';
+                return;
+            }
+
+            container.innerHTML = list.map((q, qIndex) => `
+                <div class="card">
+                    <div class="question-header">
+                        <span class="tag">${escapeHTML(q.level) || 'N3~N5'}</span>
+                        <div>
+                            <button class="btn-audio" onclick="speakText('${escapeHTML(q.question)}')">🔊 朗讀</button>
+                            <button class="btn-audio" onclick="speakText('${escapeHTML(q.question)}', true)">🐢 慢速</button>
+                        </div>
+                    </div>
+                    <div class="question-text">${qIndex + 1}. ${escapeHTML(q.question)}</div>
+                    <div class="options-grid">
+                        ${q.options.map((opt, optIndex) => `
+                            <button class="option-btn" onclick="checkAnswer(this, ${optIndex + 1}, ${q.answer}, '${targetId}-exp-${qIndex}', '${escapeHTML(q.id)}')">
+                                ${optIndex + 1}. ${escapeHTML(opt)}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="${targetId}-exp-${qIndex}" class="explanation">
+                        <strong>💡 解析：</strong><br>${escapeHTML(q.explanation)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function checkAnswer(btn, selected, correct, expId, qId) {
+            const parent = btn.parentElement;
+            const buttons = parent.querySelectorAll('.option-btn');
+            buttons.forEach(b => b.style.pointerEvents = 'none');
+
+            totalAnswered++;
+            if(selected === correct) {
+                btn.classList.add('correct');
+                totalCorrect++;
+            } else {
+                btn.classList.add('wrong');
+                buttons[correct - 1].classList.add('correct');
+                
+                // 存入錯題本
+                let wrongList = JSON.parse(localStorage.getItem('jp_wrong_list') || '[]');
+                if(!wrongList.includes(qId)) {
+                    wrongList.push(qId);
+                    localStorage.setItem('jp_wrong_list', JSON.stringify(wrongList));
+                }
+            }
+
+            // 更新頂部統計數據
+            const rate = Math.round((totalCorrect / totalAnswered) * 100);
+            document.getElementById('stats').innerText = `今日進度：${totalAnswered} 題 | 正確率：${rate}%`;
+
+            document.getElementById(expId).style.display = 'block';
+        }
+
+        function renderWrongQuestions() {
+            const wrongIds = JSON.parse(localStorage.getItem('jp_wrong_list') || '[]');
+            const wrongQuestions = allQuestions.filter(q => wrongIds.includes(q.id));
+            renderQuestions(wrongQuestions, 'wrong-container');
+        }
+
+        function clearWrongList() {
+            if(confirm("確定要清空所有錯題紀錄嗎？")) {
+                localStorage.removeItem('jp_wrong_list');
+                alert("已清空錯題本！");
+                renderWrongQuestions();
+            }
+        }
+
+        // Canvas 手寫
+        let canvas, ctx, isDrawing = false;
+        function initCanvas() {
+            canvas = document.getElementById('writeCanvas');
+            if(!canvas) return;
+            ctx = canvas.getContext('2d');
+            ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.strokeStyle = '#2c3e50';
+
+            canvas.onmousedown = (e) => { isDrawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
+            canvas.onmousemove = (e) => { if(isDrawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
+            canvas.onmouseup = () => isDrawing = false;
+
+            canvas.ontouchstart = (e) => {
+                e.preventDefault(); const rect = canvas.getBoundingClientRect(); const touch = e.touches[0];
+                isDrawing = true; ctx.beginPath(); ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+            };
+            canvas.ontouchmove = (e) => {
+                e.preventDefault();
+                if(isDrawing) {
+                    const rect = canvas.getBoundingClientRect(); const touch = e.touches[0];
+                    ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top); ctx.stroke();
+                }
+            };
+            canvas.ontouchend = () => isDrawing = false;
+        }
+
+        function clearCanvas() {
+            if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        window.onload = () => {
+            const savedUrl = localStorage.getItem('jp_csv_url');
+            if(savedUrl) {
+                document.getElementById('csvUrl').value = savedUrl;
+                loadQuestions();
+            }
+        };
+    </script>
+</body>
+</html>
