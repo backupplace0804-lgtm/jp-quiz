@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>日語刷題 App</title>
 
-    <!-- 資安防護： Content Security Policy (CSP) -->
+    <!-- 修正版 CSP：補上 Google Sheets 重定向所需的 googleusercontent 網域 -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
         script-src 'self' 'unsafe-inline';
         style-src 'self' 'unsafe-inline';
-        connect-src 'self' https://docs.google.com https://cdn.jsdelivr.net;
+        connect-src 'self' https://docs.google.com https://*.google.com https://*.googleusercontent.com https://cdn.jsdelivr.net;
         img-src 'self' https://cdn-icons-png.flaticon.com data:;
         font-src 'self' data:;
     ">
@@ -251,7 +251,6 @@
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
 
-        // 防禦：HTML 特殊字元轉義
         function escapeHTML(str) {
             if (!str) return '';
             return String(str).replace(/[&<>"']/g, m => ({
@@ -294,7 +293,6 @@
             clearCanvas();
         }
 
-        // 資安升級：使用 DOMParser 與消毒清理載入外部 SVG 動畫
         async function playStrokeAnimation() {
             clearCanvas();
             const box = document.getElementById('stroke-demo-box');
@@ -313,11 +311,9 @@
                 if (!res.ok) throw new Error("無 SVG 資料");
                 const svgText = await res.text();
 
-                // 資安防護：使用 DOMParser 避免直接 InnerHTML 注入，並移除腳本標籤
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(svgText, "image/svg+xml");
                 
-                // 移除任何潛在的可執行腳本標籤
                 const scripts = doc.querySelectorAll('script');
                 scripts.forEach(s => s.remove());
 
@@ -335,7 +331,7 @@
                     `;
                     svgEl.appendChild(style);
 
-                    box.textContent = ''; // 清除載入文字
+                    box.textContent = '';
                     box.appendChild(document.importNode(svgEl, true));
                 } else {
                     throw new Error("SVG 格式解析失敗");
@@ -381,7 +377,6 @@
             return arr;
         }
 
-        // 輸入清理：驗證答案範圍
         function normalizeAnswer(val) {
             if (!val) return 1;
             const str = String(val).trim().toUpperCase();
