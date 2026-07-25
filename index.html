@@ -5,13 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>日語刷題 App</title>
 
-    <!-- 修正版 CSP：補上 Google Sheets 重定向所需的 googleusercontent 網域 -->
+    <!-- CSP 修正版：放寬 connect-src 與 img-src 允許 jsDelivr 圖片與 SVG 載入 -->
     <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self';
-        script-src 'self' 'unsafe-inline';
-        style-src 'self' 'unsafe-inline';
+        default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;
         connect-src 'self' https://docs.google.com https://*.google.com https://*.googleusercontent.com https://cdn.jsdelivr.net;
-        img-src 'self' https://cdn-icons-png.flaticon.com data:;
+        img-src 'self' https: data: blob:;
         font-src 'self' data:;
     ">
 
@@ -288,7 +286,7 @@
             currentKanaChar = char;
             document.getElementById('current-kana').innerText = `${char} (${romaji})`;
             document.getElementById('stroke-bg').innerText = char;
-            document.getElementById('stroke-demo-box').textContent = '';
+            document.getElementById('stroke-demo-box').innerHTML = '';
             speakText(char);
             clearCanvas();
         }
@@ -296,12 +294,7 @@
         async function playStrokeAnimation() {
             clearCanvas();
             const box = document.getElementById('stroke-demo-box');
-            box.textContent = '';
-            
-            const loadingText = document.createElement('span');
-            loadingText.style.cssText = 'font-size:0.8rem; color:#888;';
-            loadingText.textContent = '載入筆順中...';
-            box.appendChild(loadingText);
+            box.innerHTML = '<span style="font-size:0.8rem; color:#888;">載入筆順中...</span>';
 
             const hexCode = currentKanaChar.charCodeAt(0).toString(16).padStart(5, '0');
             const svgUrl = `https://cdn.jsdelivr.net/gh/animcjk/animcjk@master/svgsKana/${hexCode}.svg`;
@@ -309,35 +302,25 @@
             try {
                 const res = await fetch(svgUrl);
                 if (!res.ok) throw new Error("無 SVG 資料");
-                const svgText = await res.text();
+                let svgText = await res.text();
 
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(svgText, "image/svg+xml");
-                
-                const scripts = doc.querySelectorAll('script');
-                scripts.forEach(s => s.remove());
-
-                const svgEl = doc.querySelector('svg');
+                box.innerHTML = svgText;
+                const svgEl = box.querySelector('svg');
                 if (svgEl) {
                     svgEl.setAttribute('width', '240');
                     svgEl.setAttribute('height', '240');
                     
-                    const style = doc.createElementNS("http://www.w3.org/2000/svg", "style");
+                    const style = document.createElement('style');
                     style.textContent = `
-                        path {
+                        #stroke-demo-box path {
                             stroke: #e74c3c !important;
                             stroke-width: 6px !important;
                         }
                     `;
                     svgEl.appendChild(style);
-
-                    box.textContent = '';
-                    box.appendChild(document.importNode(svgEl, true));
-                } else {
-                    throw new Error("SVG 格式解析失敗");
                 }
             } catch (err) {
-                box.textContent = '';
+                box.innerHTML = '<span style="font-size:0.8rem; color:#e74c3c;">無法載入動畫</span>';
                 speakText(currentKanaChar);
             }
         }
@@ -575,7 +558,7 @@
 
         function clearCanvas() {
             if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-            document.getElementById('stroke-demo-box').textContent = '';
+            document.getElementById('stroke-demo-box').innerHTML = '';
         }
 
         document.addEventListener('click', (e) => {
