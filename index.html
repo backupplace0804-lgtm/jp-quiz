@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>日語刷題 App</title>
 
-    <!-- 終極嚴格 CSP：絕不請求外部圖片 CDN，只允許連線 Google Sheets 發布檔 -->
+    <!-- 精準資安 CSP：僅放行 Google Sheets CSV 與 jsDelivr 筆順 SVG -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
         script-src 'self' 'unsafe-inline';
         style-src 'self' 'unsafe-inline';
-        connect-src 'self' https://docs.google.com https://*.googleusercontent.com;
-        img-src 'self' data:;
+        connect-src 'self' https://docs.google.com https://*.googleusercontent.com https://cdn.jsdelivr.net;
+        img-src 'self' data: https://cdn.jsdelivr.net;
         font-src 'self' data:;
         object-src 'none';
         base-uri 'self';
@@ -37,10 +37,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0; padding: 0;
-            display: flex; flex-direction: column; align-items: center;
+            background-color: var(--bg); color: var(--text);
+            margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center;
             min-height: 100vh; user-select: none;
         }
 
@@ -87,7 +85,6 @@
         .tag-date { background-color: #f0f0f0; color: #666; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; }
 
         .audio-btns { display: flex; gap: 4px; flex-shrink: 0; }
-
         .question-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 12px; line-height: 1.4; }
 
         .btn-audio {
@@ -112,12 +109,9 @@
             border-radius: 4px; font-size: 0.9rem; line-height: 1.5;
         }
 
-        .keyword-box {
-            margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1;
-            color: #2e7d32; font-weight: bold; font-size: 0.85rem;
-        }
+        .keyword-box { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; color: #2e7d32; font-weight: bold; font-size: 0.85rem; }
 
-        /* 50音網格樣式 */
+        /* 50音網格與畫板 */
         .kana-grid {
             display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; 
             margin-bottom: 15px; max-height: 200px; overflow-y: auto;
@@ -140,24 +134,13 @@
         .stroke-guide-bg {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            opacity: 0.15; pointer-events: none; font-size: 150px;
+            opacity: 0.12; pointer-events: none; font-size: 150px;
             font-family: "Hiragino Sans", "Kaku Gothic Pro", "Yu Gothic", sans-serif; color: #333;
         }
 
         #stroke-demo-box {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 5; display: flex; justify-content: center; align-items: center;
-        }
-
-        /* 純 CSS 動畫筆順漸顯效果 */
-        .animated-stroke {
-            font-size: 150px; font-family: "Hiragino Sans", "Kaku Gothic Pro", "Yu Gothic", sans-serif;
-            color: #ff9800; animation: fadeInStroke 1.2s ease-in-out infinite alternate;
-        }
-
-        @keyframes fadeInStroke {
-            from { opacity: 0.1; transform: scale(0.95); }
-            to { opacity: 0.9; transform: scale(1); }
         }
 
         canvas { position: absolute; top: 0; left: 0; touch-action: none; cursor: crosshair; z-index: 10; }
@@ -200,8 +183,8 @@
         <!-- 50音與手寫畫板 -->
         <div id="kana" class="tab-content">
             <div class="card" style="text-align:center;">
-                <h3>✍️ 假名發音與標準筆順</h3>
-                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，點擊「筆順示範」看引導提示：</p>
+                <h3>✍️ 假名發音與真實筆順動畫</h3>
+                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，點擊「筆順示範」觀看一筆一畫寫法：</p>
                 
                 <div class="kana-grid" id="kana-grid-box"></div>
 
@@ -238,7 +221,6 @@
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
 
-        // 完整五十音表
         const kanaList = [
             { c: 'あ', r: 'a' },  { c: 'い', r: 'i' },  { c: 'う', r: 'u' },  { c: 'え', r: 'e' },  { c: 'お', r: 'o' },
             { c: 'か', r: 'ka' }, { c: 'き', r: 'ki' }, { c: 'く', r: 'ku' }, { c: 'け', r: 'ke' }, { c: 'こ', r: 'ko' },
@@ -262,7 +244,6 @@
             }).join('');
         }
 
-        // XSS 轉義防禦
         function escapeHTML(str) {
             if (!str) return '';
             return String(str).replace(/[&<>"']/g, m => ({
@@ -301,11 +282,31 @@
             clearCanvas();
         }
 
-        // 本地純前端漸顯描紅筆順示範 (免連線、不發動網路請求，100% 成功且安全)
+        // 動態 Fetch 並注入 AnimCJK SVG (完美觸發內建逐筆動畫)
         function playStrokeAnimation() {
             clearCanvas();
             const box = document.getElementById('stroke-demo-box');
-            box.innerHTML = `<div class="animated-stroke">${currentKanaChar}</div>`;
+            box.innerHTML = '<span style="font-size:0.8rem; color:#888;">載入動畫中...</span>';
+
+            const hex = currentKanaChar.charCodeAt(0).toString(16).padStart(4, '0');
+            const svgUrl = `https://cdn.jsdelivr.net/gh/animcjk/animcjk@master/svgsKana/${hex}.svg`;
+
+            fetch(svgUrl)
+                .then(res => {
+                    if (!res.ok) throw new Error("SVG 載入失敗");
+                    return res.text();
+                })
+                .then(svgText => {
+                    box.innerHTML = svgText;
+                    const svgEl = box.querySelector('svg');
+                    if (svgEl) {
+                        svgEl.setAttribute('width', '240');
+                        svgEl.setAttribute('height', '240');
+                    }
+                })
+                .catch(err => {
+                    box.innerHTML = '<span style="font-size:0.8rem; color:#e74c3c;">無法載入筆順</span>';
+                });
         }
 
         function saveConfig() {
