@@ -124,23 +124,45 @@
         .kana-btn.empty { visibility: hidden; pointer-events: none; }
         .kana-btn:active { background: var(--primary); color: white; }
 
+        /* 左右分欄排版：左側筆順示範，右側手寫畫板 */
+        .practice-area {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+
+        .panel-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
         .canvas-container {
-            position: relative; width: 240px; height: 240px; margin: 0 auto;
+            position: relative; width: 180px; height: 180px;
             border: 2px dashed #cbd5e1; border-radius: 12px; background-color: #fff; overflow: hidden;
         }
 
         .stroke-guide-bg {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            opacity: 0.12; pointer-events: none; font-size: 140px; color: #333;
+            opacity: 0.12; pointer-events: none; font-size: 110px; color: #333;
         }
 
         #stroke-demo-box {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 5; display: flex; justify-content: center; align-items: center;
+            display: flex; justify-content: center; align-items: center;
         }
 
-        /* 確保 AnimCJK 內嵌的 SVG 動畫元素能正確撐開並顯示 */
         #stroke-demo-box svg {
             width: 100%;
             height: 100%;
@@ -187,21 +209,32 @@
         <!-- 50音與手寫畫板 -->
         <div id="kana" class="tab-content">
             <div class="card" style="text-align:center;">
-                <h3>✍️ 假名發音與真實筆順動畫</h3>
-                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，點擊「筆順示範」觀看一筆一畫寫法：</p>
+                <h3>✍️ 假名發音與筆順練習</h3>
+                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，左側看標準筆順示範，右側親自動手寫：</p>
                 
                 <div class="kana-grid" id="kana-grid-box"></div>
 
                 <h2 id="current-kana" style="margin: 5px 0; color:var(--primary);">あ (a)</h2>
                 
-                <div class="canvas-container">
-                    <div id="stroke-bg" class="stroke-guide-bg">あ</div>
-                    <div id="stroke-demo-box"></div>
-                    <canvas id="writeCanvas" width="240" height="240"></canvas>
+                <!-- 左右排版：左側筆順示範區（獨立），右側乾淨手寫板 -->
+                <div class="practice-area">
+                    <div class="panel-box">
+                        <div class="panel-title">🎬 標準筆順示範</div>
+                        <div class="canvas-container">
+                            <div id="stroke-bg" class="stroke-guide-bg">あ</div>
+                            <div id="stroke-demo-box"></div>
+                        </div>
+                    </div>
+                    <div class="panel-box">
+                        <div class="panel-title">✍️ 你的練習畫板</div>
+                        <div class="canvas-container">
+                            <canvas id="writeCanvas" width="180" height="180"></canvas>
+                        </div>
+                    </div>
                 </div>
 
-                <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px;">
-                    <button class="btn-action" style="background:#ff9800;" id="btn-stroke-demo">🎬 筆順示範</button>
+                <div style="margin-top:14px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px;">
+                    <button class="btn-action" style="background:#ff9800;" id="btn-stroke-demo">播放示範</button>
                     <button class="btn-action" style="background:#e0e0e0; color:#333;" id="btn-clear-canvas">清空畫板</button>
                     <button class="btn-action" id="btn-kana-speak">🔊 聽發音</button>
                 </div>
@@ -317,11 +350,9 @@
             clearCanvas();
         }
 
-        // 筆順動畫：精確使用 AnimCJK 的 svgsJaKana 資料夾與十進位 Unicode 檔名
         function playStrokeAnimation() {
-            clearCanvas();
             const box = document.getElementById('stroke-demo-box');
-            box.innerHTML = '<span style="font-size:0.8rem; color:#888;">載入動畫中...</span>';
+            box.innerHTML = '<span style="font-size:0.75rem; color:#888;">載入中...</span>';
 
             const decimalCode = currentKanaChar.charCodeAt(0);
             const svgUrl = `https://cdn.jsdelivr.net/gh/parsimonhi/animCJK@master/svgsJaKana/${decimalCode}.svg`;
@@ -335,7 +366,7 @@
                     box.innerHTML = svgText;
                 })
                 .catch(err => {
-                    box.innerHTML = '<span style="font-size:0.8rem; color:#e74c3c;">無法載入筆順</span>';
+                    box.innerHTML = '<span style="font-size:0.75rem; color:#e74c3c;">無法載入</span>';
                 });
         }
 
@@ -577,7 +608,7 @@
             canvas = document.getElementById('writeCanvas');
             if(!canvas) return;
             ctx = canvas.getContext('2d');
-            ctx.lineWidth = 8;
+            ctx.lineWidth = 7;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.strokeStyle = '#4a90e2';
@@ -602,7 +633,6 @@
 
         function clearCanvas() {
             if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-            document.getElementById('stroke-demo-box').innerHTML = '';
         }
 
         document.addEventListener('click', (e) => {
