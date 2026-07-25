@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>日語刷題 App</title>
 
-    <!-- 精準資安 CSP：僅放行 Google Sheets CSV 與 jsDelivr 筆順 SVG -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
         script-src 'self' 'unsafe-inline';
@@ -111,7 +110,6 @@
 
         .keyword-box { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; color: #2e7d32; font-weight: bold; font-size: 0.85rem; }
 
-        /* 50音網格與畫板 */
         .kana-grid {
             display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; 
             margin-bottom: 15px; max-height: 200px; overflow-y: auto;
@@ -235,6 +233,40 @@
             { c: 'ん', r: 'n' }
         ];
 
+        // 取得 YYYY-MM-DD
+        function getTodayStr() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        // 判斷是否為每 7 天的複習日
+        function isWrongReviewDay() {
+            const today = new Date();
+            const startOfYear = new Date(today.getFullYear(), 0, 0);
+            const diff = today - startOfYear;
+            const oneDay = 1000 * 60 * 60 * 24;
+            const dayOfYear = Math.floor(diff / oneDay);
+            return (dayOfYear % 7 === 0);
+        }
+
+        // 以日期字串當種子的洗牌演算法（每日題目固定）
+        function seededShuffle(array, seedStr) {
+            let seed = 0;
+            for (let i = 0; i < seedStr.length; i++) {
+                seed += seedStr.charCodeAt(i);
+            }
+            const pseudoRandom = () => {
+                let x = Math.sin(seed++) * 10000;
+                return x - Math.floor(x);
+            };
+
+            let shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(pseudoRandom() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
         function renderKanaGrid() {
             const grid = document.getElementById('kana-grid-box');
             if (!grid) return;
@@ -282,7 +314,6 @@
             clearCanvas();
         }
 
-        // 動態 Fetch 並注入 AnimCJK SVG (完美觸發內建逐筆動畫)
         function playStrokeAnimation() {
             clearCanvas();
             const box = document.getElementById('stroke-demo-box');
@@ -391,8 +422,58 @@
                 const res = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now());
                 if (!res.ok) throw new Error("HTTP 載入失敗");
                 const csvData = await res.text();
+                
                 allQuestions = parseCSV(csvData);
-                renderQuestions(allQuestions, 'quiz-container');
+                if (allQuestions.length === 0) {
+                    document.getElementById('quiz-container').innerHTML = '<div class="card"><p>目前試算表中沒有題目。</p></div>';
+                    return;
+                }
+
+                const todayStr = getTodayStr();
+                let wrongIds = [];
+                try {
+                    wrongIds = JSON.parse(localStorage.getItem('jp_wrong_list') || '[]');
+                } catch(e) { wrongIds = []; }
+
+                let selectedQuestions = [];
+                let targetTotal = 20;
+
+                const isReviewDay = isWrongReviewDay();
+                let reviewCount = 0;
+
+                // 每 7 天從錯題本挑 1~2 題
+                if (isReviewDay && wrongIds.length > 0) {
+                    const wrongQuestions = allQuestions.filter(q => wrongIds.includes(q.id));
+                    if (wrongQuestions.length > 0) {
+                        const shuffledWrong = seededShuffle(wrongQuestions, todayStr + '_wrong');
+                        reviewCount = Math.min(shuffledWrong.length, 2);
+                        selectedQuestions.push(...shuffledWrong.slice(0, reviewCount));
+                    }
+                }
+
+                // 補足其餘一般題目至 20 題
+                const pickedIds = new Set(selectedQuestions.map(q => q.id));
+                const remainingPool = allQuestions.filter(q => !pickedIds.has(q.id));
+                
+                const shuffledRemaining = seededShuffle(remainingPool, todayStr + '_main');
+                const fillCount = Math.min(targetTotal - selectedQuestions.length, shuffledRemaining.length);
+                
+                selectedQuestions.push(...shuffledRemaining.slice(0, fillCount));
+
+                // 混合洗牌
+                const finalDailyQuestions = seededShuffle(selectedQuestions, todayStr + '_final');
+
+                renderQuestions(finalDailyQuestions, 'quiz-container');
+
+                const quizContainer = document.getElementById('quiz-container');
+                if (isReviewDay && reviewCount > 0) {
+                    quizContainer.insertAdjacentHTML('afterbegin', 
+                        `<div style="background:#e8f5e9; border:1px solid #4caf50; color:#2e7d32; padding:8px 12px; border-radius:8px; margin-bottom:12px; font-size:0.85rem; text-align:center;">
+                            🎉 週期複習日！已自動從錯題本加入 ${reviewCount} 題進行強化練習。
+                         </div>`
+                    );
+                }
+
             } catch (err) {
                 document.getElementById('quiz-container').innerHTML = '<div class="card"><p style="color:var(--danger)">資料載入失敗，請檢查網路或連結設定。</p></div>';
             }
