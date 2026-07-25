@@ -69,7 +69,9 @@
         }
 
         .question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .tag-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
         .tag { background-color: #eef2f7; color: var(--primary); padding: 3px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
+        .tag-date { background-color: #f0f0f0; color: #666; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; }
 
         .question-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 12px; line-height: 1.4; }
 
@@ -95,7 +97,6 @@
             border-radius: 4px; font-size: 0.9rem; line-height: 1.4;
         }
 
-        /* 50音選擇按鈕 */
         .kana-grid {
             display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 15px;
         }
@@ -107,7 +108,37 @@
 
         .kana-btn:active { background: var(--primary); color: white; }
 
-        canvas { border: 2px dashed #cbd5e1; border-radius: 12px; background: #fff; touch-action: none; }
+        /* 畫板與筆畫底圖容器 */
+        .canvas-container {
+            position: relative;
+            width: 260px;
+            height: 260px;
+            margin: 0 auto;
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            background-color: #fff;
+            overflow: hidden;
+        }
+
+        /* 筆畫引導底圖 */
+        .stroke-guide-bg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0.25;
+            pointer-events: none;
+            font-size: 150px;
+            font-family: "Hiragino Sans", "Kaku Gothic Pro", "Yu Gothic", sans-serif;
+            color: #333;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0; left: 0;
+            touch-action: none;
+            cursor: crosshair;
+        }
 
         .btn-action {
             width: 100%; padding: 10px; border: none; border-radius: 8px;
@@ -137,7 +168,7 @@
             </div>
         </div>
 
-        <!-- 錯題本專區 -->
+        <!-- 錯題本 -->
         <div id="wrong" class="tab-content">
             <div id="wrong-container">
                 <div class="card"><p>目前沒有錯題，繼續保持！👍</p></div>
@@ -147,24 +178,31 @@
         <!-- 50音與手寫畫板 -->
         <div id="kana" class="tab-content">
             <div class="card" style="text-align:center;">
-                <h3>✍️ 假名發音與練習畫板</h3>
-                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，並在下方練習手寫：</p>
+                <h3>✍️ 假名發音與筆畫練習</h3>
+                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，對照底圖描寫筆畫：</p>
                 <div class="kana-grid">
-                    <button class="kana-btn" onclick="selectKana('あ')">あ</button>
-                    <button class="kana-btn" onclick="selectKana('い')">い</button>
-                    <button class="kana-btn" onclick="selectKana('う')">う</button>
-                    <button class="kana-btn" onclick="selectKana('え')">え</button>
-                    <button class="kana-btn" onclick="selectKana('お')">お</button>
-                    <button class="kana-btn" onclick="selectKana('か')">か</button>
-                    <button class="kana-btn" onclick="selectKana('き')">き</button>
-                    <button class="kana-btn" onclick="selectKana('く')">く</button>
-                    <button class="kana-btn" onclick="selectKana('け')">け</button>
-                    <button class="kana-btn" onclick="selectKana('こ')">こ</button>
+                    <button class="kana-btn" onclick="selectKana('あ', 'a')">あ</button>
+                    <button class="kana-btn" onclick="selectKana('い', 'i')">い</button>
+                    <button class="kana-btn" onclick="selectKana('う', 'u')">う</button>
+                    <button class="kana-btn" onclick="selectKana('え', 'e')">え</button>
+                    <button class="kana-btn" onclick="selectKana('お', 'o')">お</button>
+                    <button class="kana-btn" onclick="selectKana('か', 'ka')">か</button>
+                    <button class="kana-btn" onclick="selectKana('き', 'ki')">き</button>
+                    <button class="kana-btn" onclick="selectKana('く', 'ku')">く</button>
+                    <button class="kana-btn" onclick="selectKana('け', 'ke')">け</button>
+                    <button class="kana-btn" onclick="selectKana('こ', 'ko')">こ</button>
                 </div>
-                <h2 id="current-kana" style="margin: 5px 0; color:var(--primary);">あ</h2>
-                <canvas id="writeCanvas" width="260" height="260"></canvas>
-                <div style="margin-top:10px;">
+                <h2 id="current-kana" style="margin: 5px 0; color:var(--primary);">あ (a)</h2>
+                
+                <!-- 畫板核心區 -->
+                <div class="canvas-container">
+                    <div id="stroke-bg" class="stroke-guide-bg">あ</div>
+                    <canvas id="writeCanvas" width="260" height="260"></canvas>
+                </div>
+
+                <div style="margin-top:12px; display:flex; gap:8px;">
                     <button class="btn-action" style="background:#e0e0e0; color:#333;" onclick="clearCanvas()">清空畫板</button>
+                    <button class="btn-action" onclick="speakText(currentKanaChar)">🔊 再聽一遍</button>
                 </div>
             </div>
         </div>
@@ -184,6 +222,7 @@
         let allQuestions = [];
         let totalAnswered = 0;
         let totalCorrect = 0;
+        let currentKanaChar = 'あ';
 
         function escapeHTML(str) {
             return str ? str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])) : '';
@@ -209,8 +248,10 @@
             }
         }
 
-        function selectKana(char) {
-            document.getElementById('current-kana').innerText = char;
+        function selectKana(char, romaji) {
+            currentKanaChar = char;
+            document.getElementById('current-kana').innerText = `${char} (${romaji})`;
+            document.getElementById('stroke-bg').innerText = char;
             speakText(char);
             clearCanvas();
         }
@@ -230,19 +271,38 @@
             for(let i = 1; i < lines.length; i++) {
                 if(!lines[i].trim()) continue;
                 const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                if(cols.length >= 7) {
+                
+                if(cols.length >= 8) {
+                    const clean = col => col ? col.replace(/^"|"$/g, '').trim() : '';
+                    
+                    let id = clean(cols[0]);
+                    let date = clean(cols[1]);
+                    let category = clean(cols[2]);
+                    let level = clean(cols[3]);
+                    let question = clean(cols[4]);
+                    
+                    if(!question && cols[2]) {
+                        question = clean(cols[2]);
+                        level = clean(cols[1]);
+                        category = '';
+                        date = '';
+                    }
+
+                    const opt1 = clean(cols[5]);
+                    const opt2 = clean(cols[6]);
+                    const opt3 = clean(cols[7]);
+                    const opt4 = clean(cols[8]);
+                    const options = [opt1, opt2, opt3, opt4].filter(o => o !== '');
+
                     result.push({
-                        id: cols[0]?.replace(/^"|"$/g, '').trim(),
-                        level: cols[1]?.replace(/^"|"$/g, '').trim(),
-                        question: cols[2]?.replace(/^"|"$/g, '').trim(),
-                        options: [
-                            cols[3]?.replace(/^"|"$/g, '').trim(),
-                            cols[4]?.replace(/^"|"$/g, '').trim(),
-                            cols[5]?.replace(/^"|"$/g, '').trim(),
-                            cols[6]?.replace(/^"|"$/g, '').trim()
-                        ],
-                        answer: parseInt(cols[7]?.replace(/^"|"$/g, '').trim()) || 1,
-                        explanation: cols[8]?.replace(/^"|"$/g, '').trim() || '無解析'
+                        id: id || String(i),
+                        date: date,
+                        category: category,
+                        level: level,
+                        question: question,
+                        options: options,
+                        answer: parseInt(clean(cols[9])) || 1,
+                        explanation: clean(cols[10]) || '無解析'
                     });
                 }
             }
@@ -273,7 +333,11 @@
             container.innerHTML = list.map((q, qIndex) => `
                 <div class="card">
                     <div class="question-header">
-                        <span class="tag">${escapeHTML(q.level) || 'N3~N5'}</span>
+                        <div class="tag-group">
+                            ${q.date ? `<span class="tag-date">${escapeHTML(q.date.split('T')[0])}</span>` : ''}
+                            ${q.category ? `<span class="tag">${escapeHTML(q.category)}</span>` : ''}
+                            ${q.level ? `<span class="tag" style="background:#e8f5e9; color:#2e7d32;">${escapeHTML(q.level)}</span>` : ''}
+                        </div>
                         <div>
                             <button class="btn-audio" onclick="speakText('${escapeHTML(q.question)}')">🔊 朗讀</button>
                             <button class="btn-audio" onclick="speakText('${escapeHTML(q.question)}', true)">🐢 慢速</button>
@@ -305,9 +369,8 @@
                 totalCorrect++;
             } else {
                 btn.classList.add('wrong');
-                buttons[correct - 1].classList.add('correct');
+                if(buttons[correct - 1]) buttons[correct - 1].classList.add('correct');
                 
-                // 存入錯題本
                 let wrongList = JSON.parse(localStorage.getItem('jp_wrong_list') || '[]');
                 if(!wrongList.includes(qId)) {
                     wrongList.push(qId);
@@ -315,7 +378,6 @@
                 }
             }
 
-            // 更新頂部統計數據
             const rate = Math.round((totalCorrect / totalAnswered) * 100);
             document.getElementById('stats').innerText = `今日進度：${totalAnswered} 題 | 正確率：${rate}%`;
 
@@ -336,13 +398,15 @@
             }
         }
 
-        // Canvas 手寫
         let canvas, ctx, isDrawing = false;
         function initCanvas() {
             canvas = document.getElementById('writeCanvas');
             if(!canvas) return;
             ctx = canvas.getContext('2d');
-            ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#4a90e2';
 
             canvas.onmousedown = (e) => { isDrawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
             canvas.onmousemove = (e) => { if(isDrawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
