@@ -68,10 +68,13 @@
             padding: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px;
         }
 
-        .question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .question-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px; }
         .tag-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
         .tag { background-color: #eef2f7; color: var(--primary); padding: 3px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
+        .tag-level { background-color: #fff3e0; color: #e65100; padding: 3px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
         .tag-date { background-color: #f0f0f0; color: #666; padding: 3px 8px; border-radius: 10px; font-size: 0.75rem; }
+
+        .audio-btns { display: flex; gap: 4px; flex-shrink: 0; }
 
         .question-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 12px; line-height: 1.4; }
 
@@ -92,9 +95,14 @@
         .option-btn.wrong { background-color: #f8d7da; border-color: var(--danger); color: #721c24; }
 
         .explanation {
-            display: none; margin-top: 12px; padding: 10px;
+            display: none; margin-top: 12px; padding: 12px;
             background-color: #f8f9fa; border-left: 4px solid var(--primary);
-            border-radius: 4px; font-size: 0.9rem; line-height: 1.4;
+            border-radius: 4px; font-size: 0.9rem; line-height: 1.5;
+        }
+
+        .keyword-box {
+            margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1;
+            color: #2e7d32; font-weight: bold; font-size: 0.85rem;
         }
 
         .kana-grid {
@@ -108,7 +116,6 @@
 
         .kana-btn:active { background: var(--primary); color: white; }
 
-        /* 畫板與筆畫底圖容器 */
         .canvas-container {
             position: relative;
             width: 260px;
@@ -120,13 +127,12 @@
             overflow: hidden;
         }
 
-        /* 筆畫引導底圖 */
         .stroke-guide-bg {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            opacity: 0.25;
+            opacity: 0.18;
             pointer-events: none;
             font-size: 150px;
             font-family: "Hiragino Sans", "Kaku Gothic Pro", "Yu Gothic", sans-serif;
@@ -154,10 +160,10 @@
     </header>
 
     <nav>
-        <button class="active" onclick="switchTab('quiz')">每日刷題</button>
-        <button onclick="switchTab('wrong')">錯題本</button>
-        <button onclick="switchTab('kana')">50音練習</button>
-        <button onclick="switchTab('settings')">設定</button>
+        <button class="active" data-tab="quiz">每日刷題</button>
+        <button data-tab="wrong">錯題本</button>
+        <button data-tab="kana">50音練習</button>
+        <button data-tab="settings">設定</button>
     </nav>
 
     <div class="container">
@@ -178,31 +184,31 @@
         <!-- 50音與手寫畫板 -->
         <div id="kana" class="tab-content">
             <div class="card" style="text-align:center;">
-                <h3>✍️ 假名發音與筆畫練習</h3>
-                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，對照底圖描寫筆畫：</p>
+                <h3>✍️ 假名發音與筆順練習</h3>
+                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，點擊「筆順示範」看筆劃動畫：</p>
                 <div class="kana-grid">
-                    <button class="kana-btn" onclick="selectKana('あ', 'a')">あ</button>
-                    <button class="kana-btn" onclick="selectKana('い', 'i')">い</button>
-                    <button class="kana-btn" onclick="selectKana('う', 'u')">う</button>
-                    <button class="kana-btn" onclick="selectKana('え', 'e')">え</button>
-                    <button class="kana-btn" onclick="selectKana('お', 'o')">お</button>
-                    <button class="kana-btn" onclick="selectKana('か', 'ka')">か</button>
-                    <button class="kana-btn" onclick="selectKana('き', 'ki')">き</button>
-                    <button class="kana-btn" onclick="selectKana('く', 'ku')">く</button>
-                    <button class="kana-btn" onclick="selectKana('け', 'ke')">け</button>
-                    <button class="kana-btn" onclick="selectKana('こ', 'ko')">こ</button>
+                    <button class="kana-btn" data-char="あ" data-romaji="a">あ</button>
+                    <button class="kana-btn" data-char="い" data-romaji="i">い</button>
+                    <button class="kana-btn" data-char="う" data-romaji="u">う</button>
+                    <button class="kana-btn" data-char="え" data-romaji="e">え</button>
+                    <button class="kana-btn" data-char="お" data-romaji="o">お</button>
+                    <button class="kana-btn" data-char="か" data-romaji="ka">か</button>
+                    <button class="kana-btn" data-char="き" data-romaji="ki">き</button>
+                    <button class="kana-btn" data-char="く" data-romaji="ku">く</button>
+                    <button class="kana-btn" data-char="け" data-romaji="ke">け</button>
+                    <button class="kana-btn" data-char="こ" data-romaji="ko">こ</button>
                 </div>
                 <h2 id="current-kana" style="margin: 5px 0; color:var(--primary);">あ (a)</h2>
                 
-                <!-- 畫板核心區 -->
                 <div class="canvas-container">
                     <div id="stroke-bg" class="stroke-guide-bg">あ</div>
                     <canvas id="writeCanvas" width="260" height="260"></canvas>
                 </div>
 
-                <div style="margin-top:12px; display:flex; gap:8px;">
-                    <button class="btn-action" style="background:#e0e0e0; color:#333;" onclick="clearCanvas()">清空畫板</button>
-                    <button class="btn-action" onclick="speakText(currentKanaChar)">🔊 再聽一遍</button>
+                <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px;">
+                    <button class="btn-action" style="background:#ff9800;" id="btn-stroke-demo">🎬 筆順示範</button>
+                    <button class="btn-action" style="background:#e0e0e0; color:#333;" id="btn-clear-canvas">清空畫板</button>
+                    <button class="btn-action" id="btn-kana-speak">🔊 聽發音</button>
                 </div>
             </div>
         </div>
@@ -212,8 +218,8 @@
             <div class="card">
                 <h3>⚙️ 資料庫網址設定</h3>
                 <input type="text" id="csvUrl" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv" style="width:100%; padding:10px; margin-bottom:10px;">
-                <button class="btn-action" onclick="saveConfig()">儲存並更新題目</button>
-                <button class="btn-action" style="background:var(--danger); margin-top:10px;" onclick="clearWrongList()">清空錯題紀錄</button>
+                <button class="btn-action" id="btn-save-config">儲存並更新題目</button>
+                <button class="btn-action" style="background:var(--danger); margin-top:10px;" id="btn-clear-wrong">清空錯題紀錄</button>
             </div>
         </div>
     </div>
@@ -223,25 +229,63 @@
         let totalAnswered = 0;
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
+        let isAnimating = false;
 
+        const kanaPaths = {
+            'あ': [
+                [{x: 60, y: 100}, {x: 200, y: 100}],
+                [{x: 130, y: 50}, {x: 130, y: 200}],
+                [{x: 170, y: 120}, {x: 100, y: 180}, {x: 70, y: 130}, {x: 150, y: 140}, {x: 180, y: 180}]
+            ],
+            'い': [
+                [{x: 90, y: 70}, {x: 80, y: 180}, {x: 100, y: 170}],
+                [{x: 170, y: 80}, {x: 160, y: 150}]
+            ],
+            'う': [
+                [{x: 120, y: 60}, {x: 150, y: 70}],
+                [{x: 80, y: 110}, {x: 180, y: 110}, {x: 100, y: 200}]
+            ],
+            'え': [
+                [{x: 120, y: 55}, {x: 145, y: 65}],
+                [{x: 70, y: 110}, {x: 190, y: 110}, {x: 90, y: 190}, {x: 180, y: 190}]
+            ],
+            'お': [
+                [{x: 60, y: 100}, {x: 180, y: 100}],
+                [{x: 120, y: 60}, {x: 120, y: 170}, {x: 80, y: 150}, {x: 150, y: 190}],
+                [{x: 180, y: 80}, {x: 195, y: 95}]
+            ]
+        };
+
+        // 安全 HTML 轉義
         function escapeHTML(str) {
-            return str ? str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])) : '';
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[m]));
         }
 
-        function switchTab(tabId) {
+        // 頁籤切換
+        function switchTab(tabId, targetBtn) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            event.target.classList.add('active');
+            
+            const targetContent = document.getElementById(tabId);
+            if(targetContent) targetContent.classList.add('active');
+            if(targetBtn) targetBtn.classList.add('active');
 
             if(tabId === 'wrong') renderWrongQuestions();
             if(tabId === 'kana') setTimeout(initCanvas, 100);
         }
 
+        // 安全發音功能
         function speakText(text, isSlow = false) {
-            if ('speechSynthesis' in window) {
+            if ('speechSynthesis' in window && text) {
                 window.speechSynthesis.cancel();
-                const u = new SpeechSynthesisUtterance(text);
+                const u = new SpeechSynthesisUtterance(String(text));
                 u.lang = 'ja-JP';
                 u.rate = isSlow ? 0.6 : 0.85;
                 window.speechSynthesis.speak(u);
@@ -256,44 +300,112 @@
             clearCanvas();
         }
 
+        async function playStrokeAnimation() {
+            if (isAnimating) return;
+            isAnimating = true;
+            clearCanvas();
+
+            const strokes = kanaPaths[currentKanaChar];
+            if (!strokes) {
+                speakText(currentKanaChar);
+                isAnimating = false;
+                return;
+            }
+
+            ctx.lineWidth = 7;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            for (let stroke of strokes) {
+                ctx.strokeStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.moveTo(stroke[0].x, stroke[0].y);
+
+                for (let i = 1; i < stroke.length; i++) {
+                    const start = stroke[i - 1];
+                    const end = stroke[i];
+                    const steps = 18;
+
+                    for (let s = 1; s <= steps; s++) {
+                        const curX = start.x + (end.x - start.x) * (s / steps);
+                        const curY = start.y + (end.y - start.y) * (s / steps);
+                        ctx.lineTo(curX, curY);
+                        ctx.stroke();
+                        await new Promise(r => setTimeout(r, 16));
+                    }
+                }
+                await new Promise(r => setTimeout(r, 180));
+            }
+
+            ctx.strokeStyle = '#4a90e2';
+            ctx.lineWidth = 8;
+            isAnimating = false;
+        }
+
         function saveConfig() {
-            const url = document.getElementById('csvUrl').value.trim();
-            if(!url.startsWith('https://docs.google.com/')) return alert("請輸入正確的 CSV 連結！");
-            localStorage.setItem('jp_csv_url', url);
-            alert("設定完成！");
+            const urlInput = document.getElementById('csvUrl').value.trim();
+            if(!urlInput.startsWith('https://docs.google.com/spreadsheets/')) {
+                return alert("請輸入有效的 Google Sheets CSV 發布連結！");
+            }
+            localStorage.setItem('jp_csv_url', urlInput);
+            alert("設定已儲存！");
             loadQuestions();
-            switchTab('quiz');
+            const quizNavBtn = document.querySelector('nav button[data-tab="quiz"]');
+            switchTab('quiz', quizNavBtn);
+        }
+
+        function parseCSVText(str) {
+            const arr = [];
+            let quote = false;
+            let row = [''];
+            for (let c = 0; c < str.length; c++) {
+                let cc = str[c], nc = str[c+1];
+                if (cc === '"') {
+                    if (quote && nc === '"') { row[row.length - 1] += '"'; c++; }
+                    else { quote = !quote; }
+                } else if (cc === ',' && !quote) {
+                    row.push('');
+                } else if ((cc === '\r' || cc === '\n') && !quote) {
+                    if (cc === '\r' && nc === '\n') { c++; }
+                    arr.push(row);
+                    row = [''];
+                } else {
+                    row[row.length - 1] += cc;
+                }
+            }
+            if (row.length > 1 || row[0] !== '') arr.push(row);
+            return arr;
         }
 
         function parseCSV(text) {
-            const lines = text.split(/\r\n|\n/);
+            const rows = parseCSVText(text);
             const result = [];
-            for(let i = 1; i < lines.length; i++) {
-                if(!lines[i].trim()) continue;
-                const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                
-                if(cols.length >= 8) {
-                    const clean = col => col ? col.replace(/^"|"$/g, '').trim() : '';
-                    
-                    let id = clean(cols[0]);
-                    let date = clean(cols[1]);
-                    let category = clean(cols[2]);
-                    let level = clean(cols[3]);
-                    let question = clean(cols[4]);
-                    
-                    if(!question && cols[2]) {
-                        question = clean(cols[2]);
-                        level = clean(cols[1]);
-                        category = '';
-                        date = '';
-                    }
 
-                    const opt1 = clean(cols[5]);
-                    const opt2 = clean(cols[6]);
-                    const opt3 = clean(cols[7]);
-                    const opt4 = clean(cols[8]);
-                    const options = [opt1, opt2, opt3, opt4].filter(o => o !== '');
+            for(let i = 1; i < rows.length; i++) {
+                const cols = rows[i];
+                if(!cols || cols.length < 10) continue;
 
+                const clean = col => col ? col.trim() : '';
+
+                let id = clean(cols[0]);          // A欄: ID
+                let date = clean(cols[1]);        // B欄: 日期
+                let category = clean(cols[2]);    // C欄: 種類
+                let level = clean(cols[3]);       // D欄: 難易度
+                let question = clean(cols[4]);    // E欄: 題目
+
+                let opt1 = clean(cols[5]);        // F欄: 選項A
+                let opt2 = clean(cols[6]);        // G欄: 選項B
+                let opt3 = clean(cols[7]);        // H欄: 選項C
+                let opt4 = clean(cols[8]);        // I欄: 選項D
+
+                let ansVal = clean(cols[9]);      // J欄: 答案 (1~4)
+                let explanation = clean(cols[10]);// K欄: 文法解析
+                let keyword = clean(cols[11]);    // L欄: 關鍵單字 (Key Word)
+
+                const options = [opt1, opt2, opt3, opt4].filter(o => o !== '');
+                const parsedAns = parseInt(ansVal, 10);
+
+                if(question) {
                     result.push({
                         id: id || String(i),
                         date: date,
@@ -301,8 +413,9 @@
                         level: level,
                         question: question,
                         options: options,
-                        answer: parseInt(clean(cols[9])) || 1,
-                        explanation: clean(cols[10]) || '無解析'
+                        answer: isNaN(parsedAns) ? 1 : parsedAns,
+                        explanation: explanation || '無解析',
+                        keyword: keyword
                     });
                 }
             }
@@ -314,51 +427,64 @@
             if(!url) return;
 
             try {
-                const res = await fetch(url + '&t=' + new Date().getTime());
+                const res = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now());
+                if (!res.ok) throw new Error("HTTP 載入失敗");
                 const csvData = await res.text();
                 allQuestions = parseCSV(csvData);
                 renderQuestions(allQuestions, 'quiz-container');
             } catch (err) {
-                document.getElementById('quiz-container').innerHTML = '<div class="card"><p style="color:var(--danger)">載入失敗，請檢查網址設定。</p></div>';
+                document.getElementById('quiz-container').innerHTML = '<div class="card"><p style="color:var(--danger)">資料載入失敗，請檢查網路或連結設定。</p></div>';
             }
         }
 
         function renderQuestions(list, targetId) {
             const container = document.getElementById(targetId);
+            if(!container) return;
+
             if(list.length === 0) {
                 container.innerHTML = '<div class="card"><p>目前沒有題目。</p></div>';
                 return;
             }
 
             container.innerHTML = list.map((q, qIndex) => `
-                <div class="card">
+                <div class="card" data-qid="${escapeHTML(q.id)}">
                     <div class="question-header">
                         <div class="tag-group">
                             ${q.date ? `<span class="tag-date">${escapeHTML(q.date.split('T')[0])}</span>` : ''}
                             ${q.category ? `<span class="tag">${escapeHTML(q.category)}</span>` : ''}
-                            ${q.level ? `<span class="tag" style="background:#e8f5e9; color:#2e7d32;">${escapeHTML(q.level)}</span>` : ''}
+                            ${q.level ? `<span class="tag-level">${escapeHTML(q.level)}</span>` : ''}
                         </div>
-                        <div>
-                            <button class="btn-audio" onclick="speakText('${escapeHTML(q.question)}')">🔊 朗讀</button>
-                            <button class="btn-audio" onclick="speakText('${escapeHTML(q.question)}', true)">🐢 慢速</button>
+                        <div class="audio-btns">
+                            <button class="btn-audio btn-speak-normal" data-speech="${escapeHTML(q.question)}">🔊 朗讀</button>
+                            <button class="btn-audio btn-speak-slow" data-speech="${escapeHTML(q.question)}">🐢 慢速</button>
                         </div>
                     </div>
                     <div class="question-text">${qIndex + 1}. ${escapeHTML(q.question)}</div>
                     <div class="options-grid">
                         ${q.options.map((opt, optIndex) => `
-                            <button class="option-btn" onclick="checkAnswer(this, ${optIndex + 1}, ${q.answer}, '${targetId}-exp-${qIndex}', '${escapeHTML(q.id)}')">
+                            <button class="option-btn" 
+                                    data-selected="${optIndex + 1}" 
+                                    data-correct="${q.answer}" 
+                                    data-expid="${targetId}-exp-${qIndex}" 
+                                    data-qid="${escapeHTML(q.id)}">
                                 ${optIndex + 1}. ${escapeHTML(opt)}
                             </button>
                         `).join('')}
                     </div>
                     <div id="${targetId}-exp-${qIndex}" class="explanation">
-                        <strong>💡 解析：</strong><br>${escapeHTML(q.explanation)}
+                        <strong>💡 文法解析：</strong><br>${escapeHTML(q.explanation)}
+                        ${q.keyword ? `<div class="keyword-box">🔑 關鍵單字：${escapeHTML(q.keyword)}</div>` : ''}
                     </div>
                 </div>
             `).join('');
         }
 
-        function checkAnswer(btn, selected, correct, expId, qId) {
+        function handleAnswer(btn) {
+            const selected = parseInt(btn.dataset.selected, 10);
+            const correct = parseInt(btn.dataset.correct, 10);
+            const expId = btn.dataset.expid;
+            const qId = btn.dataset.qid;
+
             const parent = btn.parentElement;
             const buttons = parent.querySelectorAll('.option-btn');
             buttons.forEach(b => b.style.pointerEvents = 'none');
@@ -371,23 +497,33 @@
                 btn.classList.add('wrong');
                 if(buttons[correct - 1]) buttons[correct - 1].classList.add('correct');
                 
-                let wrongList = JSON.parse(localStorage.getItem('jp_wrong_list') || '[]');
-                if(!wrongList.includes(qId)) {
-                    wrongList.push(qId);
-                    localStorage.setItem('jp_wrong_list', JSON.stringify(wrongList));
+                try {
+                    let wrongList = JSON.parse(localStorage.getItem('jp_wrong_list') || '[]');
+                    if(!Array.isArray(wrongList)) wrongList = [];
+                    if(!wrongList.includes(qId)) {
+                        wrongList.push(qId);
+                        localStorage.setItem('jp_wrong_list', JSON.stringify(wrongList));
+                    }
+                } catch(e) {
+                    localStorage.setItem('jp_wrong_list', JSON.stringify([qId]));
                 }
             }
 
             const rate = Math.round((totalCorrect / totalAnswered) * 100);
             document.getElementById('stats').innerText = `今日進度：${totalAnswered} 題 | 正確率：${rate}%`;
 
-            document.getElementById(expId).style.display = 'block';
+            const expEl = document.getElementById(expId);
+            if(expEl) expEl.style.display = 'block';
         }
 
         function renderWrongQuestions() {
-            const wrongIds = JSON.parse(localStorage.getItem('jp_wrong_list') || '[]');
-            const wrongQuestions = allQuestions.filter(q => wrongIds.includes(q.id));
-            renderQuestions(wrongQuestions, 'wrong-container');
+            try {
+                const wrongIds = JSON.parse(localStorage.getItem('jp_wrong_list') || '[]');
+                const wrongQuestions = allQuestions.filter(q => wrongIds.includes(q.id));
+                renderQuestions(wrongQuestions, 'wrong-container');
+            } catch(e) {
+                renderQuestions([], 'wrong-container');
+            }
         }
 
         function clearWrongList() {
@@ -408,17 +544,18 @@
             ctx.lineJoin = 'round';
             ctx.strokeStyle = '#4a90e2';
 
-            canvas.onmousedown = (e) => { isDrawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
-            canvas.onmousemove = (e) => { if(isDrawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
+            canvas.onmousedown = (e) => { if(isAnimating) return; isDrawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
+            canvas.onmousemove = (e) => { if(isDrawing && !isAnimating) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
             canvas.onmouseup = () => isDrawing = false;
 
             canvas.ontouchstart = (e) => {
+                if(isAnimating) return;
                 e.preventDefault(); const rect = canvas.getBoundingClientRect(); const touch = e.touches[0];
                 isDrawing = true; ctx.beginPath(); ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
             };
             canvas.ontouchmove = (e) => {
                 e.preventDefault();
-                if(isDrawing) {
+                if(isDrawing && !isAnimating) {
                     const rect = canvas.getBoundingClientRect(); const touch = e.touches[0];
                     ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top); ctx.stroke();
                 }
@@ -429,6 +566,45 @@
         function clearCanvas() {
             if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
+
+        // 事件委派監聽 (全域安全處裡)
+        document.addEventListener('click', (e) => {
+            // 導覽列點擊
+            if (e.target.tagName === 'BUTTON' && e.target.parentElement.tagName === 'NAV') {
+                const tabId = e.target.dataset.tab;
+                if(tabId) switchTab(tabId, e.target);
+                return;
+            }
+
+            // 朗讀按鈕
+            if (e.target.classList.contains('btn-speak-normal')) {
+                speakText(e.target.dataset.speech, false);
+                return;
+            }
+            if (e.target.classList.contains('btn-speak-slow')) {
+                speakText(e.target.dataset.speech, true);
+                return;
+            }
+
+            // 選項按鈕
+            if (e.target.classList.contains('option-btn')) {
+                handleAnswer(e.target);
+                return;
+            }
+
+            // 50音按鈕
+            if (e.target.classList.contains('kana-btn')) {
+                selectKana(e.target.dataset.char, e.target.dataset.romaji);
+                return;
+            }
+        });
+
+        // 靜態按鈕監聽
+        document.getElementById('btn-stroke-demo')?.addEventListener('click', playStrokeAnimation);
+        document.getElementById('btn-clear-canvas')?.addEventListener('click', clearCanvas);
+        document.getElementById('btn-kana-speak')?.addEventListener('click', () => speakText(currentKanaChar));
+        document.getElementById('btn-save-config')?.addEventListener('click', saveConfig);
+        document.getElementById('btn-clear-wrong')?.addEventListener('click', clearWrongList);
 
         window.onload = () => {
             const savedUrl = localStorage.getItem('jp_csv_url');
