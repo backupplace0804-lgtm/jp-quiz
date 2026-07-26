@@ -110,7 +110,6 @@
 
         .keyword-box { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; color: #2e7d32; font-weight: bold; font-size: 0.85rem; }
 
-        /* 平假名/片假名切換按鈕群組 */
         .kana-type-switch {
             display: flex; justify-content: center; gap: 10px; margin-bottom: 12px;
         }
@@ -139,7 +138,6 @@
         }
 
         .panel-box { display: flex; flex-direction: column; align-items: center; }
-
         .panel-title { font-size: 0.85rem; color: #666; margin-bottom: 6px; font-weight: bold; }
 
         .canvas-container {
@@ -244,7 +242,7 @@
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
         let currentKanaMode = 'hira';
-        let currentUtterance = null; // 手機發音防記憶體回收全域變數
+        let currentUtterance = null; // 全域變數防止記憶體回收
 
         const hiraList = [
             { c: 'あ', r: 'a' },  { c: 'い', r: 'i' },  { c: 'う', r: 'u' },  { c: 'え', r: 'e' },  { c: 'お', r: 'o' },
@@ -269,7 +267,7 @@
             { c: 'ハ', r: 'ha' }, { c: 'ヒ', r: 'hi' }, { c: 'フ', r: 'fu' }, { c: 'ヘ', r: 'he' }, { c: 'ホ', r: 'ho' },
             { c: 'マ', r: 'ma' }, { c: 'ミ', r: 'mi' }, { c: 'ム', r: 'mu' }, { c: 'メ', r: 'me' }, { c: 'モ', r: 'mo' },
             { c: 'ヤ', r: 'ya' }, { c: '', r: '' },     { c: 'ユ', r: 'yu' }, { c: '', r: '' },     { c: 'ヨ', r: 'yo' },
-            { c: 'ラ', r: 'ra' }, { c: 'リ', r: 'ri' }, { c: 'ル', r: 'ru' }, { c: 'レ', r: 're' }, { c: 'ロ', r: 'ro' },
+            { c: 'ラ', r: 'ra' }, { c: 'リ', r: 'ri' }, { c: 'る', r: 'ru' }, { c: 'レ', r: 're' }, { c: 'ロ', r: 'ro' },
             { c: 'ワ', r: 'wa' }, { c: '', r: '' },     { c: '', r: '' },     { c: '', r: '' },     { c: 'ヲ', r: 'wo' },
             { c: 'ン', r: 'n' }
         ];
@@ -345,7 +343,7 @@
             if(tabId === 'kana') setTimeout(initCanvas, 100);
         }
 
-        // 方案 1：結合強制取消、延遲重置與 pitch 防呆，徹底解決手機發音被截斷問題
+        // 專為 50音單字/短音優化的防截斷發音函式（加入 80ms 暖機緩衝）
         function speakText(text, isSlow = false) {
             if ('speechSynthesis' in window && text) {
                 window.speechSynthesis.cancel();
@@ -354,10 +352,10 @@
                     currentUtterance = new SpeechSynthesisUtterance(String(text));
                     currentUtterance.lang = 'ja-JP';
                     currentUtterance.rate = isSlow ? 0.6 : 0.85;
-                    currentUtterance.pitch = 1.0; // 避免部分行動裝置因預設音高異常導致發音中斷
+                    currentUtterance.pitch = 1.0;
 
                     window.speechSynthesis.speak(currentUtterance);
-                }, 50);
+                }, 80);
             }
         }
 
@@ -370,7 +368,7 @@
             clearCanvas();
         }
 
-        // 資安強化：使用 DOMParser 安全載入遠端 SVG 並過濾潛在的 script 標籤
+        // 資安防護：透過 DOMParser 安全解析遠端 SVG 並拔除潛在 script 標籤
         function playStrokeAnimation() {
             const box = document.getElementById('stroke-demo-box');
             box.innerHTML = '<span style="font-size:0.7rem; color:#888;">載入中...</span>';
@@ -387,7 +385,7 @@
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(svgText, "image/svg+xml");
                     const scripts = doc.querySelectorAll('script');
-                    scripts.forEach(s => s.remove()); // 安全防護：移除遠端 SVG 內可能夾帶的 script
+                    scripts.forEach(s => s.remove()); // XSS 防護
 
                     box.innerHTML = '';
                     box.appendChild(doc.documentElement);
@@ -420,7 +418,6 @@
             return arr;
         }
 
-        // 資安與防呆強化：嚴格限制答案範圍在 1~4 之間
         function normalizeAnswer(val) {
             if (!val) return 1;
             const str = String(val).trim().toUpperCase();
