@@ -222,8 +222,8 @@
                 
                 <!-- 平假名 / 片假名切換按鈕 -->
                 <div class="kana-type-switch">
-                    <button class="type-btn active" id="btn-type-hira" onclick="setKanaType('hira')">平假名</button>
-                    <button class="type-btn" id="btn-type-kata" onclick="setKanaType('kata')">片假名</button>
+                    <button class="type-btn active" id="btn-type-hira" data-mode="hira">平假名</button>
+                    <button class="type-btn" id="btn-type-kata" data-mode="kata">片假名</button>
                 </div>
 
                 <div class="kana-grid" id="kana-grid-box"></div>
@@ -266,14 +266,13 @@
     </div>
 
     <script>
-        // 已內建你的 Google Sheets CSV 連結
         const DEFAULT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ3MMjyZEwy6gHXiPzvfIeHyN7b5rvniKJRTybCksK10aEeh_SOiSMxeXj-7dBKExa8Gr3ciS1rDr5s/pub?gid=0&single=true&output=csv";
 
         let allQuestions = [];
         let totalAnswered = 0;
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
-        let currentKanaMode = 'hira'; // 'hira' 或 'kata'
+        let currentKanaMode = 'hira';
 
         const hiraList = [
             { c: 'あ', r: 'a' },  { c: 'い', r: 'i' },  { c: 'う', r: 'u' },  { c: 'え', r: 'e' },  { c: 'お', r: 'o' },
@@ -686,6 +685,13 @@
             if (e.target.tagName === 'BUTTON' && e.target.parentElement.tagName === 'NAV') {
                 const tabId = e.target.dataset.tab;
                 if(tabId) switchTab(tabId, e.target);
+                return;
+            }
+
+            // 處理平假名/片假名切換按鈕點擊
+            if (e.target.classList.contains('type-btn')) {
+                const mode = e.target.dataset.mode;
+                if (mode) setKanaType(mode);
                 return;
             }
 
