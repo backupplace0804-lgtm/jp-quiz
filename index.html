@@ -237,7 +237,6 @@
     </div>
 
     <script>
-        // Google Sheets CSV 來源直接寫入程式中
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ3MMjyZEwy6gHXiPzvfIeHyN7b5rvniKJRTybCksK10aEeh_SOiSMxeXj-7dBKExa8Gr3ciS1rDr5s/pub?gid=0&single=true&output=csv";
 
         let allQuestions = [];
@@ -323,7 +322,7 @@
             if (!grid) return;
             grid.innerHTML = list.map(k => {
                 if (!k.c) return '<div class="kana-btn empty"></div>';
-                return `<button class="kana-btn" data-char="${k.c}" data-romaji="${k.r}">${k.c}</button>`;
+                return `<button class="kana-btn" data-char="${escapeHTML(k.c)}" data-romaji="${escapeHTML(k.r)}">${escapeHTML(k.c)}</button>`;
             }).join('');
         }
 
@@ -346,15 +345,19 @@
             if(tabId === 'kana') setTimeout(initCanvas, 100);
         }
 
+        // 方案 1：結合強制取消、延遲重置與 pitch 防呆，徹底解決手機發音被截斷問題
         function speakText(text, isSlow = false) {
             if ('speechSynthesis' in window && text) {
                 window.speechSynthesis.cancel();
                 
-                currentUtterance = new SpeechSynthesisUtterance(String(text));
-                currentUtterance.lang = 'ja-JP';
-                currentUtterance.rate = isSlow ? 0.6 : 0.85;
-                
-                window.speechSynthesis.speak(currentUtterance);
+                setTimeout(() => {
+                    currentUtterance = new SpeechSynthesisUtterance(String(text));
+                    currentUtterance.lang = 'ja-JP';
+                    currentUtterance.rate = isSlow ? 0.6 : 0.85;
+                    currentUtterance.pitch = 1.0; // 避免部分行動裝置因預設音高異常導致發音中斷
+
+                    window.speechSynthesis.speak(currentUtterance);
+                }, 50);
             }
         }
 
@@ -367,6 +370,7 @@
             clearCanvas();
         }
 
+        // 資安強化：使用 DOMParser 安全載入遠端 SVG 並過濾潛在的 script 標籤
         function playStrokeAnimation() {
             const box = document.getElementById('stroke-demo-box');
             box.innerHTML = '<span style="font-size:0.7rem; color:#888;">載入中...</span>';
@@ -380,7 +384,13 @@
                     return res.text();
                 })
                 .then(svgText => {
-                    box.innerHTML = svgText;
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(svgText, "image/svg+xml");
+                    const scripts = doc.querySelectorAll('script');
+                    scripts.forEach(s => s.remove()); // 安全防護：移除遠端 SVG 內可能夾帶的 script
+
+                    box.innerHTML = '';
+                    box.appendChild(doc.documentElement);
                 })
                 .catch(err => {
                     box.innerHTML = '<span style="font-size:0.7rem; color:#e74c3c;">無法載入</span>';
@@ -410,6 +420,7 @@
             return arr;
         }
 
+        // 資安與防呆強化：嚴格限制答案範圍在 1~4 之間
         function normalizeAnswer(val) {
             if (!val) return 1;
             const str = String(val).trim().toUpperCase();
@@ -465,6 +476,7 @@
                 let wrongIds = [];
                 try {
                     wrongIds = JSON.parse(localStorage.getItem('jp_wrong_list') || '[]');
+                    if (!Array.isArray(wrongIds)) wrongIds = [];
                 } catch(e) { wrongIds = []; }
 
                 let selectedQuestions = [];
@@ -590,6 +602,10 @@
         function renderWrongQuestions() {
             try {
                 const wrongIds = JSON.parse(localStorage.getItem('jp_wrong_list') || '[]');
+                if (!Array.isArray(wrongIds)) {
+                    renderQuestions([], 'wrong-container');
+                    return;
+                }
                 const wrongQuestions = allQuestions.filter(q => wrongIds.includes(q.id));
                 renderQuestions(wrongQuestions, 'wrong-container');
             } catch(e) {
@@ -677,7 +693,6 @@
         document.getElementById('btn-kana-speak')?.addEventListener('click', () => speakText(currentKanaChar));
         document.getElementById('btn-clear-wrong')?.addEventListener('click', clearWrongList);
 
-        // 初始化執行
         document.addEventListener("DOMContentLoaded", () => {
             setKanaType('hira');
             loadQuestions();
