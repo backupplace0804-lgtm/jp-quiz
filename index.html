@@ -242,7 +242,8 @@
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
         let currentKanaMode = 'hira';
-        let currentUtterance = null; // 全域變數防止記憶體回收
+        let currentUtterance = null;
+        let isAudioUnlocked = false; // 追蹤手機音訊通道解鎖狀態
 
         const hiraList = [
             { c: 'あ', r: 'a' },  { c: 'い', r: 'i' },  { c: 'う', r: 'u' },  { c: 'え', r: 'e' },  { c: 'お', r: 'o' },
@@ -267,10 +268,48 @@
             { c: 'ハ', r: 'ha' }, { c: 'ヒ', r: 'hi' }, { c: 'フ', r: 'fu' }, { c: 'ヘ', r: 'he' }, { c: 'ホ', r: 'ho' },
             { c: 'マ', r: 'ma' }, { c: 'ミ', r: 'mi' }, { c: 'ム', r: 'mu' }, { c: 'メ', r: 'me' }, { c: 'モ', r: 'mo' },
             { c: 'ヤ', r: 'ya' }, { c: '', r: '' },     { c: 'ユ', r: 'yu' }, { c: '', r: '' },     { c: 'ヨ', r: 'yo' },
-            { c: 'ラ', r: 'ra' }, { c: 'リ', r: 'ri' }, { c: 'る', r: 'ru' }, { c: 'レ', r: 're' }, { c: 'ロ', r: 'ro' },
+            { c: 'ら', r: 'ra' }, { c: 'リ', r: 'ri' }, { c: 'る', r: 'ru' }, { c: 'れ', r: 're' }, { c: 'ろ', r: 'ro' },
             { c: 'ワ', r: 'wa' }, { c: '', r: '' },     { c: '', r: '' },     { c: '', r: '' },     { c: 'ヲ', r: 'wo' },
             { c: 'ン', r: 'n' }
         ];
+
+        // 🛡️ 行動裝置專用：強制解鎖語音硬體通道與雙重緩衝執行緒
+        function unlockAudioEngine() {
+            if (isAudioUnlocked || !('speechSynthesis' in window)) return;
+            try {
+                // 發送一個無聲或極短的空白佔位語音，強制喚醒手機的音訊輸出硬體
+                const silentUtterance = new SpeechSynthesisUtterance(' ');
+                silentUtterance.volume = 0.01;
+                silentUtterance.rate = 1.0;
+                window.speechSynthesis.speak(silentUtterance);
+                isAudioUnlocked = true;
+            } catch (e) {}
+        }
+
+        function speakText(text, isSlow = false) {
+            if (!('speechSynthesis' in window) || !text) return;
+
+            // 確保每次點擊時都有觸發解鎖
+            unlockAudioEngine();
+            window.speechSynthesis.cancel();
+
+            // 針對行動端極短字串（50音）的物理級防截斷策略：
+            // 1. 前後包覆日文空白與句號，使語音引擎判定這是一個完整區段
+            // 2. 利用 120ms 延遲讓硬體佇列準備就緒
+            const cleanText = String(text).trim();
+            const payload = cleanText.length <= 2 ? `、${cleanText}。` : cleanText;
+
+            setTimeout(() => {
+                currentUtterance = new SpeechSynthesisUtterance(payload);
+                currentUtterance.lang = 'ja-JP';
+                currentUtterance.rate = isSlow ? 0.5 : 0.7; // 進一步降低語速，讓手機晶片有充裕時間發音
+                currentUtterance.pitch = 1.0;
+                currentUtterance.volume = 1.0;
+
+                // 針對 iOS Safari 的額外保險：強制重新觸發 speak
+                window.speechSynthesis.speak(currentUtterance);
+            }, 120);
+        }
 
         function getTodayStr() {
             return new Date().toISOString().split('T')[0];
@@ -304,6 +343,7 @@
         }
 
         function setKanaType(mode) {
+            unlockAudioEngine();
             currentKanaMode = mode;
             document.getElementById('btn-type-hira').classList.toggle('active', mode === 'hira');
             document.getElementById('btn-type-kata').classList.toggle('active', mode === 'kata');
@@ -332,6 +372,7 @@
         }
 
         function switchTab(tabId, targetBtn) {
+            unlockAudioEngine();
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
             
@@ -341,25 +382,6 @@
 
             if(tabId === 'wrong') renderWrongQuestions();
             if(tabId === 'kana') setTimeout(initCanvas, 100);
-        }
-
-        // 🛡️ 針對手機端極端優化的發音防截斷與護城河機制
-        function speakText(text, isSlow = false) {
-            if ('speechSynthesis' in window && text) {
-                window.speechSynthesis.cancel();
-                
-                setTimeout(() => {
-                    // 若為 50音單字或極短字串，前後加上標點護城河，拉長引擎判定時間
-                    const safeText = String(text).length <= 2 ? `、${text}。` : String(text);
-                    
-                    currentUtterance = new SpeechSynthesisUtterance(safeText);
-                    currentUtterance.lang = 'ja-JP';
-                    currentUtterance.rate = isSlow ? 0.55 : 0.75; // 稍微調慢確保手機晶片有餘裕咬字
-                    currentUtterance.pitch = 1.0;
-
-                    window.speechSynthesis.speak(currentUtterance);
-                }, 100);
-            }
         }
 
         function selectKana(char, romaji) {
@@ -563,6 +585,7 @@
         }
 
         function handleAnswer(btn) {
+            unlockAudioEngine();
             const selected = parseInt(btn.dataset.selected, 10);
             const correct = parseInt(btn.dataset.correct, 10);
             const expId = btn.dataset.expid;
@@ -636,6 +659,7 @@
             canvas.onmouseup = () => isDrawing = false;
 
             canvas.ontouchstart = (e) => {
+                unlockAudioEngine();
                 e.preventDefault(); const rect = canvas.getBoundingClientRect(); const touch = e.touches[0];
                 isDrawing = true; ctx.beginPath(); ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
             };
@@ -652,6 +676,10 @@
         function clearCanvas() {
             if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
+
+        // 全域觸控/點擊事件監聽，第一時間解鎖手機音訊通道
+        window.addEventListener('touchstart', unlockAudioEngine, { once: true });
+        window.addEventListener('click', unlockAudioEngine, { once: true });
 
         document.addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON' && e.target.parentElement.tagName === 'NAV') {
