@@ -197,7 +197,6 @@
         <button class="active" data-tab="quiz">每日刷題</button>
         <button data-tab="wrong">錯題本</button>
         <button data-tab="kana">50音練習</button>
-        <button data-tab="settings">設定</button>
     </nav>
 
     <div class="container">
@@ -213,6 +212,7 @@
             <div id="wrong-container">
                 <div class="card"><p>目前沒有錯題，繼續保持！👍</p></div>
             </div>
+            <button class="btn-action" style="background:var(--danger); margin-top:10px;" id="btn-clear-wrong">清空錯題紀錄</button>
         </div>
 
         <!-- 50音與手寫畫板 -->
@@ -253,20 +253,11 @@
                 </div>
             </div>
         </div>
-
-        <!-- 設定 -->
-        <div id="settings" class="tab-content">
-            <div class="card">
-                <h3>⚙️ 資料庫網址設定</h3>
-                <input type="text" id="csvUrl" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv" style="width:100%; padding:10px; margin-bottom:10px;">
-                <button class="btn-action" id="btn-save-config">儲存並更新題目</button>
-                <button class="btn-action" style="background:var(--danger); margin-top:10px;" id="btn-clear-wrong">清空錯題紀錄</button>
-            </div>
-        </div>
     </div>
 
     <script>
-        const DEFAULT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ3MMjyZEwy6gHXiPzvfIeHyN7b5rvniKJRTybCksK10aEeh_SOiSMxeXj-7dBKExa8Gr3ciS1rDr5s/pub?gid=0&single=true&output=csv";
+        // 直接將您的 Google Sheets CSV 來源寫入程式中
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ3MMjyZEwy6gHXiPzvfIeHyN7b5rvniKJRTybCksK10aEeh_SOiSMxeXj-7dBKExa8Gr3ciS1rDr5s/pub?gid=0&single=true&output=csv";
 
         let allQuestions = [];
         let totalAnswered = 0;
@@ -412,18 +403,6 @@
                 });
         }
 
-        function saveConfig() {
-            const urlInput = document.getElementById('csvUrl').value.trim();
-            if(!urlInput.startsWith('https://docs.google.com/spreadsheets/')) {
-                return alert("請輸入有效的 Google Sheets CSV 發布連結！");
-            }
-            localStorage.setItem('jp_csv_url', urlInput);
-            alert("設定已儲存！");
-            loadQuestions();
-            const quizNavBtn = document.querySelector('nav button[data-tab="quiz"]');
-            switchTab('quiz', quizNavBtn);
-        }
-
         function parseCSVText(str) {
             const arr = [];
             let quote = false;
@@ -487,15 +466,8 @@
         }
 
         async function loadQuestions() {
-            let url = localStorage.getItem('jp_csv_url');
-            if(!url) {
-                url = DEFAULT_CSV_URL;
-                localStorage.setItem('jp_csv_url', url);
-            }
-            document.getElementById('csvUrl').value = url;
-
             try {
-                const res = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now());
+                const res = await fetch(CSV_URL + (CSV_URL.includes('?') ? '&' : '?') + 't=' + Date.now());
                 if (!res.ok) throw new Error("HTTP 載入失敗");
                 const csvData = await res.text();
                 
@@ -688,7 +660,6 @@
                 return;
             }
 
-            // 處理平假名/片假名切換按鈕點擊
             if (e.target.classList.contains('type-btn')) {
                 const mode = e.target.dataset.mode;
                 if (mode) setKanaType(mode);
@@ -720,13 +691,13 @@
         document.getElementById('btn-stroke-demo')?.addEventListener('click', playStrokeAnimation);
         document.getElementById('btn-clear-canvas')?.addEventListener('click', clearCanvas);
         document.getElementById('btn-kana-speak')?.addEventListener('click', () => speakText(currentKanaChar));
-        document.getElementById('btn-save-config')?.addEventListener('click', saveConfig);
         document.getElementById('btn-clear-wrong')?.addEventListener('click', clearWrongList);
 
-        window.onload = () => {
-            renderKanaGrid(hiraList);
+        // 初始化執行
+        document.addEventListener("DOMContentLoaded", () => {
+            setKanaType('hira');
             loadQuestions();
-        };
+        });
     </script>
 </body>
 </html>
