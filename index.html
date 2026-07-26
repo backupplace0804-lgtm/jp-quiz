@@ -343,19 +343,22 @@
             if(tabId === 'kana') setTimeout(initCanvas, 100);
         }
 
-        // 專為 50音單字/短音優化的防截斷發音函式（加入 80ms 暖機緩衝）
+        // 🛡️ 針對手機端極端優化的發音防截斷與護城河機制
         function speakText(text, isSlow = false) {
             if ('speechSynthesis' in window && text) {
                 window.speechSynthesis.cancel();
                 
                 setTimeout(() => {
-                    currentUtterance = new SpeechSynthesisUtterance(String(text));
+                    // 若為 50音單字或極短字串，前後加上標點護城河，拉長引擎判定時間
+                    const safeText = String(text).length <= 2 ? `、${text}。` : String(text);
+                    
+                    currentUtterance = new SpeechSynthesisUtterance(safeText);
                     currentUtterance.lang = 'ja-JP';
-                    currentUtterance.rate = isSlow ? 0.6 : 0.85;
+                    currentUtterance.rate = isSlow ? 0.55 : 0.75; // 稍微調慢確保手機晶片有餘裕咬字
                     currentUtterance.pitch = 1.0;
 
                     window.speechSynthesis.speak(currentUtterance);
-                }, 80);
+                }, 100);
             }
         }
 
