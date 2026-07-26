@@ -245,7 +245,6 @@
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
         let currentKanaMode = 'hira';
-        let currentUtterance = null; // 手機發音防記憶體回收全域變數
 
         const hiraList = [
             { c: 'あ', r: 'a' },  { c: 'い', r: 'i' },  { c: 'う', r: 'u' },  { c: 'え', r: 'e' },  { c: 'お', r: 'o' },
@@ -349,12 +348,10 @@
         function speakText(text, isSlow = false) {
             if ('speechSynthesis' in window && text) {
                 window.speechSynthesis.cancel();
-                
-                currentUtterance = new SpeechSynthesisUtterance(String(text));
-                currentUtterance.lang = 'ja-JP';
-                currentUtterance.rate = isSlow ? 0.6 : 0.85;
-                
-                window.speechSynthesis.speak(currentUtterance);
+                const u = new SpeechSynthesisUtterance(String(text));
+                u.lang = 'ja-JP';
+                u.rate = isSlow ? 0.6 : 0.85;
+                window.speechSynthesis.speak(u);
             }
         }
 
