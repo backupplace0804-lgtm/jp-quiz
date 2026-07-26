@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://upload.wikimedia.org; media-src 'self' https://upload.wikimedia.org; img-src 'self' data:;">
-    <title>日語刷題 PWA</title>
+    <title>日語刷題 PWA 完整版</title>
     <style>
         :root {
             --primary-color: #4a90e2;
@@ -12,17 +12,27 @@
             --card-bg: #ffffff;
             --text-color: #333333;
             --border-color: #e1e8ed;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; min-height: 100vh; padding: 16px; }
         .container { max-width: 600px; width: 100%; margin: 0 auto; flex: 1; display: flex; flex-direction: column; gap: 16px; }
         header { text-align: center; padding: 10px 0; }
         h1 { font-size: 1.5rem; color: var(--primary-color); }
-        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border-color); text-align: center; }
-        .kana-display { font-size: 3rem; font-weight: bold; margin: 15px 0; color: #2c3e50; }
-        button { background-color: var(--primary-color); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background 0.2s; margin: 5px; }
+        .nav-tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
+        .tab-btn { background: #e0e6ed; color: #555; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; border: none; cursor: pointer; }
+        .tab-btn.active { background: var(--primary-color); color: white; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border-color); text-align: center; display: none; }
+        .card.active { display: block; }
+        .kana-display { font-size: 3.5rem; font-weight: bold; margin: 15px 0; color: #2c3e50; }
+        button { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background 0.2s; margin: 6px 4px; }
         button:active { transform: scale(0.98); }
         button:hover { opacity: 0.9; }
+        .btn-danger { background-color: var(--danger-color); }
+        .btn-success { background-color: var(--success-color); }
+        canvas { background: #fff; border: 2px dashed var(--border-color); border-radius: 8px; touch-action: none; cursor: crosshair; margin: 10px 0; }
+        .progress-bar { font-size: 0.9rem; color: #666; margin-bottom: 10px; }
         .app-footer { text-align: center; padding: 12px; font-size: 0.8rem; color: #666; margin-top: auto; border-top: 1px solid var(--border-color); }
         .app-footer a { color: var(--primary-color); text-decoration: none; }
         .app-footer a:hover { text-decoration: underline; }
@@ -32,16 +42,50 @@
 
 <div class="container">
     <header>
-        <h1>日語 50音刷題學習系統</h1>
+        <h1>日語刷題學習系統 PWA</h1>
+        <div class="progress-bar" id="progressText">今日進度：已完成 0 題</div>
     </header>
 
-    <div class="card">
-        <p>點擊下方按鈕測試真人發音（防吃音機制）</p>
-        <div id="kanaBox" class="kana-display">あ</div>
-        <button onclick="playCurrentKana()">播放標準發音</button>
-        <button onclick="nextKana()">切換下一個字</button>
+    <!-- 導覽切換頁籤 -->
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('quiz')">每日刷題</button>
+        <button class="tab-btn" onclick="switchTab('mistakes')">錯題本</button>
+        <button class="tab-btn" onclick="switchTab('canvas-tab')">手寫畫板</button>
     </div>
 
+    <!-- 1. 刷題頁面 -->
+    <div id="quiz" class="card active">
+        <div id="questionBox" class="kana-display">あ</div>
+        <p id="questionHint" style="margin-bottom: 15px; color: #666;">請選擇正確的羅馬拼音或發音</p>
+        <div>
+            <button onclick="speakCurrent()">🔊 播放真人發音</button>
+            <button class="btn-success" onclick="answerResult(true)">答對了</button>
+            <button class="btn-danger" onclick="answerResult(false)">答錯（加入錯題本）</button>
+        </div>
+        <div style="margin-top: 15px;">
+            <button onclick="nextQuestion()" style="background: #7f8c8d;">下一題</button>
+        </div>
+    </div>
+
+    <!-- 2. 錯題本頁面 -->
+    <div id="mistakes" class="card">
+        <h2>錯題複習</h2>
+        <ul id="mistakeList" style="text-align: left; margin: 15px 0; padding-left: 20px; max-height: 200px; overflow-y: auto;">
+            <li>目前尚無錯題紀錄，保持得很好！</li>
+        </ul>
+        <button onclick="clearMistakes()">清除錯題紀錄</button>
+    </div>
+
+    <!-- 3. 手寫畫板頁面 -->
+    <div id="canvas-tab" class="card">
+        <h2>50音筆順與手寫練習</h2>
+        <canvas id="drawCanvas" width="300" height="300"></canvas>
+        <div>
+            <button onclick="clearCanvas()" style="background: #95a5a6;">清除畫板</button>
+        </div>
+    </div>
+
+    <!-- 版權與開源授權聲明（合規要求） -->
     <footer class="app-footer">
         <small>
             50音真人發音取自 
@@ -62,17 +106,33 @@
             .replace(/'/g, '&#039;');
     }
 
-    const sampleKanas = ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く', 'け', 'こ', 'さ', 'し', 'す', 'せ', 'そ'];
-    let currentIndex = 0;
+    // 題庫資料
+    const questions = [
+        { kana: 'あ', romaji: 'a' },
+        { kana: 'い', romaji: 'i' },
+        { kana: 'う', romaji: 'u' },
+        { kana: 'え', romaji: 'e' },
+        { kana: 'お', romaji: 'o' },
+        { kana: 'か', romaji: 'ka' },
+        { kana: 'き', romaji: 'ki' },
+        { kana: 'く', romaji: 'ku' },
+        { kana: 'け', romaji: 'ke' },
+        { kana: 'こ', romaji: 'ko' }
+    ];
 
-    function nextKana() {
-        currentIndex = (currentIndex + 1) % sampleKanas.length;
-        const safeText = escapeHTML(sampleKanas[currentIndex]);
-        document.getElementById('kanaBox').innerHTML = safeText;
-        playCurrentKana();
+    let currentIdx = 0;
+    let completedCount = 0;
+    let mistakeBook = JSON.parse(localStorage.getItem('mistakes') || '[]');
+
+    // 頁籤切換
+    function switchTab(tabId) {
+        document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
     }
 
-    // 發音核心（含開源音檔與系統備用機制）
+    // 發音核心（開源音檔解決手機吃音，帶有備用 TTS 機制）
     function speakText(text, isSlow = false) {
         const cleanText = String(text).trim();
         if (!cleanText) return;
@@ -87,12 +147,7 @@
             'き':'https://upload.wikimedia.org/wikipedia/commons/0/07/Ja-ki.oga',
             'く':'https://upload.wikimedia.org/wikipedia/commons/b/b7/Ja-ku.oga',
             'け':'https://upload.wikimedia.org/wikipedia/commons/a/a2/Ja-ke.oga',
-            'こ':'https://upload.wikimedia.org/wikipedia/commons/2/27/Ja-ko.oga',
-            'さ':'https://upload.wikimedia.org/wikipedia/commons/c/c3/Ja-sa.oga',
-            'し':'https://upload.wikimedia.org/wikipedia/commons/4/42/Ja-shi.oga',
-            'す':'https://upload.wikimedia.org/wikipedia/commons/c/c5/Ja-su.oga',
-            'せ':'https://upload.wikimedia.org/wikipedia/commons/5/52/Ja-se.oga',
-            'そ':'https://upload.wikimedia.org/wikipedia/commons/9/9f/Ja-so.oga'
+            'こ':'https://upload.wikimedia.org/wikipedia/commons/2/27/Ja-ko.oga'
         };
 
         const audioUrl = kanaWikiMap[cleanText];
@@ -120,10 +175,77 @@
         }, 100);
     }
 
-    function playCurrentKana() {
-        const currentText = sampleKanas[currentIndex];
-        speakText(currentText);
+    function speakCurrent() {
+        speakText(questions[currentIdx].kana);
     }
+
+    function nextQuestion() {
+        currentIdx = Math.floor(Math.random() * questions.length);
+        const q = questions[currentIdx];
+        document.getElementById('questionBox').innerHTML = escapeHTML(q.kana);
+        document.getElementById('questionHint').innerHTML = `羅馬拼音提示：${escapeHTML(q.romaji)}`;
+        speakCurrent();
+    }
+
+    function answerResult(isCorrect) {
+        completedCount++;
+        document.getElementById('progressText').innerText = `今日進度：已完成 ${completedCount} 題`;
+        
+        if (!isCorrect) {
+            const currentQ = questions[currentIdx];
+            if (!mistakeBook.some(item => item.kana === currentQ.kana)) {
+                mistakeBook.push(currentQ);
+                localStorage.setItem('mistakes', JSON.stringify(mistakeBook));
+                updateMistakeUI();
+            }
+        }
+        nextQuestion();
+    }
+
+    function updateMistakeUI() {
+        const listEl = document.getElementById('mistakeList');
+        if (mistakeBook.length === 0) {
+            listEl.innerHTML = '<li>目前尚無錯題紀錄，保持得很好！</li>';
+            return;
+        }
+        listEl.innerHTML = mistakeBook.map(m => `<li>${escapeHTML(m.kana)} (${escapeHTML(m.romaji)})</li>`).join('');
+    }
+
+    function clearMistakes() {
+        mistakeBook = [];
+        localStorage.removeItem('mistakes');
+        updateMistakeUI();
+    }
+
+    // 手寫畫板邏輯
+    const canvas = document.getElementById('drawCanvas');
+    const ctx = canvas.getContext('2d');
+    let painting = false;
+
+    canvas.addEventListener('pointerdown', (e) => {
+        painting = true;
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+        if (!painting) return;
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+    });
+
+    canvas.addEventListener('pointerup', () => painting = false);
+    canvas.addEventListener('pointerleave', () => painting = false);
+
+    function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // 初始化載入錯題清單
+    updateMistakeUI();
 </script>
 
 </body>
