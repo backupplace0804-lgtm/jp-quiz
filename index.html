@@ -110,9 +110,19 @@
 
         .keyword-box { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; color: #2e7d32; font-weight: bold; font-size: 0.85rem; }
 
+        /* 平假名/片假名切換按鈕群組 */
+        .kana-type-switch {
+            display: flex; justify-content: center; gap: 10px; margin-bottom: 12px;
+        }
+        .type-btn {
+            padding: 6px 16px; border: 1px solid var(--primary); border-radius: 20px;
+            background: #fff; color: var(--primary); font-weight: bold; font-size: 0.85rem; cursor: pointer;
+        }
+        .type-btn.active { background: var(--primary); color: #fff; }
+
         .kana-grid {
             display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; 
-            margin-bottom: 15px; max-height: 200px; overflow-y: auto;
+            margin-bottom: 15px; max-height: 180px; overflow-y: auto;
             padding: 4px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fafafa;
         }
 
@@ -124,7 +134,6 @@
         .kana-btn.empty { visibility: hidden; pointer-events: none; }
         .kana-btn:active { background: var(--primary); color: white; }
 
-        /* 左右分欄排版：左側筆順示範，右側手寫畫板 */
         .practice-area {
             display: flex;
             justify-content: center;
@@ -148,14 +157,14 @@
         }
 
         .canvas-container {
-            position: relative; width: 180px; height: 180px;
+            position: relative; width: 160px; height: 160px;
             border: 2px dashed #cbd5e1; border-radius: 12px; background-color: #fff; overflow: hidden;
         }
 
         .stroke-guide-bg {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            opacity: 0.12; pointer-events: none; font-size: 110px; color: #333;
+            opacity: 0.12; pointer-events: none; font-size: 100px; color: #333;
         }
 
         #stroke-demo-box {
@@ -195,7 +204,7 @@
         <!-- 每日刷題 -->
         <div id="quiz" class="tab-content active">
             <div id="quiz-container">
-                <div class="card"><p>請先前往「設定」貼上 Google Sheet CSV 連結！</p></div>
+                <div class="card"><p>載入題目中...</p></div>
             </div>
         </div>
 
@@ -209,14 +218,18 @@
         <!-- 50音與手寫畫板 -->
         <div id="kana" class="tab-content">
             <div class="card" style="text-align:center;">
-                <h3>✍️ 假名發音與筆順練習</h3>
-                <p style="font-size:0.85rem; color:#666;">點擊假名聽發音，左側看標準筆順示範，右側親自動手寫：</p>
+                <h3>✍️ 50音發音與筆順練習</h3>
                 
+                <!-- 平假名 / 片假名切換按鈕 -->
+                <div class="kana-type-switch">
+                    <button class="type-btn active" id="btn-type-hira" onclick="setKanaType('hira')">平假名</button>
+                    <button class="type-btn" id="btn-type-kata" onclick="setKanaType('kata')">片假名</button>
+                </div>
+
                 <div class="kana-grid" id="kana-grid-box"></div>
 
                 <h2 id="current-kana" style="margin: 5px 0; color:var(--primary);">あ (a)</h2>
                 
-                <!-- 左右排版：左側筆順示範區（獨立），右側乾淨手寫板 -->
                 <div class="practice-area">
                     <div class="panel-box">
                         <div class="panel-title">🎬 標準筆順示範</div>
@@ -228,7 +241,7 @@
                     <div class="panel-box">
                         <div class="panel-title">✍️ 你的練習畫板</div>
                         <div class="canvas-container">
-                            <canvas id="writeCanvas" width="180" height="180"></canvas>
+                            <canvas id="writeCanvas" width="160" height="160"></canvas>
                         </div>
                     </div>
                 </div>
@@ -253,12 +266,16 @@
     </div>
 
     <script>
+        // 已內建你的 Google Sheets CSV 連結
+        const DEFAULT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ3MMjyZEwy6gHXiPzvfIeHyN7b5rvniKJRTybCksK10aEeh_SOiSMxeXj-7dBKExa8Gr3ciS1rDr5s/pub?gid=0&single=true&output=csv";
+
         let allQuestions = [];
         let totalAnswered = 0;
         let totalCorrect = 0;
         let currentKanaChar = 'あ';
+        let currentKanaMode = 'hira'; // 'hira' 或 'kata'
 
-        const kanaList = [
+        const hiraList = [
             { c: 'あ', r: 'a' },  { c: 'い', r: 'i' },  { c: 'う', r: 'u' },  { c: 'え', r: 'e' },  { c: 'お', r: 'o' },
             { c: 'か', r: 'ka' }, { c: 'き', r: 'ki' }, { c: 'く', r: 'ku' }, { c: 'け', r: 'ke' }, { c: 'こ', r: 'ko' },
             { c: 'さ', r: 'sa' }, { c: 'し', r: 'shi' },{ c: 'す', r: 'su' }, { c: 'せ', r: 'se' }, { c: 'そ', r: 'so' },
@@ -270,6 +287,20 @@
             { c: 'ら', r: 'ra' }, { c: 'り', r: 'ri' }, { c: 'る', r: 'ru' }, { c: 'れ', r: 're' }, { c: 'ろ', r: 'ro' },
             { c: 'わ', r: 'wa' }, { c: '', r: '' },     { c: '', r: '' },     { c: '', r: '' },     { c: 'を', r: 'wo' },
             { c: 'ん', r: 'n' }
+        ];
+
+        const kataList = [
+            { c: 'ア', r: 'a' },  { c: 'イ', r: 'i' },  { c: 'ウ', r: 'u' },  { c: 'エ', r: 'e' },  { c: 'オ', r: 'o' },
+            { c: 'カ', r: 'ka' }, { c: 'キ', r: 'ki' }, { c: 'ク', r: 'ku' }, { c: 'ケ', r: 'ke' }, { c: 'コ', r: 'ko' },
+            { c: 'サ', r: 'sa' }, { c: 'シ', r: 'shi' },{ c: 'ス', r: 'su' }, { c: 'セ', r: 'se' }, { c: 'ソ', r: 'so' },
+            { c: 'タ', r: 'ta' }, { c: 'チ', r: 'chi' },{ c: 'ツ', r: 'tsu' },{ c: 'テ', r: 'te' }, { c: 'ト', r: 'to' },
+            { c: 'ナ', r: 'na' }, { c: 'ニ', r: 'ni' }, { c: 'ヌ', r: 'nu' }, { c: 'ネ', r: 'ne' }, { c: 'ノ', r: 'no' },
+            { c: 'ハ', r: 'ha' }, { c: 'ヒ', r: 'hi' }, { c: 'フ', r: 'fu' }, { c: 'ヘ', r: 'he' }, { c: 'ホ', r: 'ho' },
+            { c: 'マ', r: 'ma' }, { c: 'ミ', r: 'mi' }, { c: 'ム', r: 'mu' }, { c: 'メ', r: 'me' }, { c: 'モ', r: 'mo' },
+            { c: 'ヤ', r: 'ya' }, { c: '', r: '' },     { c: 'ユ', r: 'yu' }, { c: '', r: '' },     { c: 'ヨ', r: 'yo' },
+            { c: 'ラ', r: 'ra' }, { c: 'リ', r: 'ri' }, { c: 'ル', r: 'ru' }, { c: 'レ', r: 're' }, { c: 'ロ', r: 'ro' },
+            { c: 'ワ', r: 'wa' }, { c: '', r: '' },     { c: '', r: '' },     { c: '', r: '' },     { c: 'ヲ', r: 'wo' },
+            { c: 'ン', r: 'n' }
         ];
 
         function getTodayStr() {
@@ -303,10 +334,22 @@
             return shuffled;
         }
 
-        function renderKanaGrid() {
+        function setKanaType(mode) {
+            currentKanaMode = mode;
+            document.getElementById('btn-type-hira').classList.toggle('active', mode === 'hira');
+            document.getElementById('btn-type-kata').classList.toggle('active', mode === 'kata');
+            
+            const list = (mode === 'hira') ? hiraList : kataList;
+            currentKanaChar = (mode === 'hira') ? 'あ' : 'ア';
+            
+            renderKanaGrid(list);
+            selectKana(currentKanaChar, list[0].r);
+        }
+
+        function renderKanaGrid(list) {
             const grid = document.getElementById('kana-grid-box');
             if (!grid) return;
-            grid.innerHTML = kanaList.map(k => {
+            grid.innerHTML = list.map(k => {
                 if (!k.c) return '<div class="kana-btn empty"></div>';
                 return `<button class="kana-btn" data-char="${k.c}" data-romaji="${k.r}">${k.c}</button>`;
             }).join('');
@@ -352,7 +395,7 @@
 
         function playStrokeAnimation() {
             const box = document.getElementById('stroke-demo-box');
-            box.innerHTML = '<span style="font-size:0.75rem; color:#888;">載入中...</span>';
+            box.innerHTML = '<span style="font-size:0.7rem; color:#888;">載入中...</span>';
 
             const decimalCode = currentKanaChar.charCodeAt(0);
             const svgUrl = `https://cdn.jsdelivr.net/gh/parsimonhi/animCJK@master/svgsJaKana/${decimalCode}.svg`;
@@ -366,7 +409,7 @@
                     box.innerHTML = svgText;
                 })
                 .catch(err => {
-                    box.innerHTML = '<span style="font-size:0.75rem; color:#e74c3c;">無法載入</span>';
+                    box.innerHTML = '<span style="font-size:0.7rem; color:#e74c3c;">無法載入</span>';
                 });
         }
 
@@ -445,8 +488,12 @@
         }
 
         async function loadQuestions() {
-            const url = localStorage.getItem('jp_csv_url');
-            if(!url) return;
+            let url = localStorage.getItem('jp_csv_url');
+            if(!url) {
+                url = DEFAULT_CSV_URL;
+                localStorage.setItem('jp_csv_url', url);
+            }
+            document.getElementById('csvUrl').value = url;
 
             try {
                 const res = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now());
@@ -502,7 +549,7 @@
                 }
 
             } catch (err) {
-                document.getElementById('quiz-container').innerHTML = '<div class="card"><p style="color:var(--danger)">資料載入失敗，請檢查網路或連結設定。</p></div>';
+                document.getElementById('quiz-container').innerHTML = '<div class="card"><p style="color:var(--danger)">資料載入失敗，請檢查網路或 Google Sheets 連結設定。</p></div>';
             }
         }
 
@@ -657,7 +704,9 @@
             }
 
             if (e.target.classList.contains('kana-btn') && !e.target.classList.contains('empty')) {
-                selectKana(e.target.dataset.char, e.target.dataset.romaji);
+                const list = (currentKanaMode === 'hira') ? hiraList : kataList;
+                const found = list.find(k => k.c === e.target.dataset.char);
+                selectKana(e.target.dataset.char, found ? found.r : '');
                 return;
             }
         });
@@ -669,12 +718,8 @@
         document.getElementById('btn-clear-wrong')?.addEventListener('click', clearWrongList);
 
         window.onload = () => {
-            renderKanaGrid();
-            const savedUrl = localStorage.getItem('jp_csv_url');
-            if(savedUrl) {
-                document.getElementById('csvUrl').value = savedUrl;
-                loadQuestions();
-            }
+            renderKanaGrid(hiraList);
+            loadQuestions();
         };
     </script>
 </body>
